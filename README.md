@@ -4,6 +4,9 @@
 > (`python scripts/run_analysis.py` 가 생성). 문서·계획·학습 기록은
 > [codyssey-A1-1-studylog](https://github.com/giyeop-cody/codyssey-A1-1-studylog).
 
+> 클론 직후에는 `data/`·`reports/metrics.json` 이 없다(재생 가능한 산출물이므로 gitignore).
+> `pytest` 가 두 파일이 없을 때만 자동으로 만들어 실행하므로, `git clone` → `pytest` 두 단계로 검증이 돈다.
+
 ## 실행
 
 ```bash
