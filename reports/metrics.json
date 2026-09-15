@@ -1,0 +1,90 @@
+{
+  "schema": {
+    "n_products": 1200,
+    "n_txns": 30000,
+    "n_cols": 9,
+    "n_dtypes": 3,
+    "n_customers": 1190
+  },
+  "missing_price_n": 36,
+  "imputation": {
+    "global_median_MAE": 88566.7,
+    "groupby_median_MAE": 32544.4,
+    "n_evaluated": 36,
+    "주의": "처음엔 positional index 를 product_id 로 잘못 짝지어 MAE 0.0(=검증 무효)이 나왔다. 정답지 비교는 결측 행에서만 성립한다",
+    "MAE_by_category": {
+      "전체중앙값": {
+        "book": 19030.0,
+        "electronics": 444366.7,
+        "fashion": 18635.7,
+        "toys": 11833.3
+      },
+      "그룹중앙값": {
+        "book": 4100.0,
+        "electronics": 136816.7,
+        "fashion": 17314.3,
+        "toys": 11216.7
+      }
+    }
+  },
+  "iqr_flag_pct": {
+    "normal": 0.54,
+    "lognormal": 7.16,
+    "price_real": 20.67
+  },
+  "outliers": {
+    "n_flagged": 248,
+    "max_price": 57850811.0,
+    "p99_price": 1581064.0,
+    "clip_would_move_rows": 248
+  },
+  "vectorization": {
+    "loop_s": 0.0056,
+    "vectorized_s": 0.0216,
+    "speedup_loop_vs_vec": 0.26,
+    "pure_python_s_per_image": 0.00019,
+    "vectorized_s_per_image": 1.8e-05,
+    "rowloop_s_per_image": 5e-06,
+    "speedup_pure_vs_vectorized": 10.8,
+    "speedup_pure_vs_rowloop": 41.7,
+    "n_pure_sample": 150
+  },
+  "correlation": {
+    "price__img_mean": 0.119,
+    "price__rating": 0.033
+  },
+  "insights_key": {
+    "img_mean_결론": "상관 약함 → 이미지 밝기로 가격을 설명할 수 없다"
+  },
+  "rfm": {
+    "n_customers": 1190,
+    "segments": {
+      "대체고객": {
+        "n": 345,
+        "매출점유율_%": 4.3,
+        "평균Recency_일": 68.3
+      },
+      "성장고객": {
+        "n": 277,
+        "매출점유율_%": 12.4,
+        "평균Recency_일": 22.6
+      },
+      "우수고객": {
+        "n": 314,
+        "매출점유율_%": 27.6,
+        "평균Recency_일": 11.3
+      },
+      "VIP": {
+        "n": 254,
+        "매출점유율_%": 55.7,
+        "평균Recency_일": 4.9
+      }
+    },
+    "VIP_평균Recency": 4.9,
+    "비VIP_평균Recency": 35.6,
+    "역순실수_VIP_평균Recency": 95.9,
+    "역순실수_VIP_고객수": 232,
+    "역순실수_매출점유율_%": 7.9,
+    "gate_VIP_recency_더작음": true
+  }
+}

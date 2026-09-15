@@ -1,0 +1,9 @@
+data/
+*.csv
+*.npy
+figures/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+# reports/ 는 남긴다(README 수치의 출처)
