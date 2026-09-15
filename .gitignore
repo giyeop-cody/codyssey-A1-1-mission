@@ -1,9 +1,8 @@
 data/
 *.csv
 *.npy
-figures/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
-# reports/ 는 남긴다(README 수치의 출처)
+# figures/ · reports/ · notebooks/ 는 제출물 → 추적한다(클론 직후 pytest 가 그 상태로 돈다).

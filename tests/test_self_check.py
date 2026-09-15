@@ -19,7 +19,10 @@ def _ensure_inputs():
     if not (ROOT / "data" / "products.csv").exists():
         subprocess.run([sys.executable, "src/data_gen.py", "--seed", "42"], cwd=ROOT, check=True,
                        capture_output=True, text=True)
-    if (ROOT / "scripts" / "run_analysis.py").exists() and not (ROOT / "reports" / "metrics.json").exists():
+    figs = list((ROOT / "figures").glob("*.png")) if (ROOT / "figures").exists() else []
+    need_analysis = (ROOT / "scripts" / "run_analysis.py").exists() and (
+        not (ROOT / "reports" / "metrics.json").exists() or not figs)
+    if need_analysis:
         subprocess.run([sys.executable, "scripts/run_analysis.py"], cwd=ROOT, check=True,
                        capture_output=True, text=True)
     if (ROOT / "scripts" / "record_gates.py").exists():
