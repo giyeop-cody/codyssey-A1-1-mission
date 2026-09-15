@@ -25,6 +25,9 @@ def _ensure_inputs():
     if need_analysis:
         subprocess.run([sys.executable, "scripts/run_analysis.py"], cwd=ROOT, check=True,
                        capture_output=True, text=True)
+    if (ROOT / "scripts" / "spec_curve.py").exists() and not (ROOT / "reports" / "spec_curve.csv").exists():
+        subprocess.run([sys.executable, "scripts/spec_curve.py"], cwd=ROOT, check=True,
+                       capture_output=True, text=True)
     if (ROOT / "scripts" / "record_gates.py").exists():
         subprocess.run([sys.executable, "scripts/record_gates.py"], cwd=ROOT, check=True,
                        capture_output=True, text=True)

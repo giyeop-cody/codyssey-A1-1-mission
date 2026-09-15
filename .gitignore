@@ -1,8 +1,10 @@
 data/
 *.csv
+!reports/*.csv
 *.npy
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
+# reports/*.csv 는 '숫자의 출처'라 예외 추적(2026-09-15: *.csv 만으론 클론에서 spec_curve.csv 가 사라져 검사가 실패했다).
 # figures/ · reports/ · notebooks/ 는 제출물 → 추적한다(클론 직후 pytest 가 그 상태로 돈다).
