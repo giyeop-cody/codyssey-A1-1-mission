@@ -129,8 +129,43 @@ def main() -> None:
     r_price_img = float(corr.loc["price", "img_mean"])
     r_price_rating = float(corr.loc["price", "rating"])
     m["correlation"] = {"price__img_mean": round(r_price_img, 3), "price__rating": round(r_price_rating, 3)}
-    m["insights_key"] = {"img_mean_결론": "상관 약함 → 이미지 밝기로 가격을 설명할 수 없다"
-                         if abs(r_price_img) < 0.2 else "상관 있음"}
+
+    # ── "이미지 평균으로 무엇을 보나" 질문에 대한 실측 (2026-09-15) ────────────────────────
+    # 상관 하나만 적어놓고 결론을 만든 것이 문제였다. 같은 두 변수를 잣대 4개로 재고,
+    # 결론이 잣대에 따라 바뀌는 것을 리포트에 남긴다.
+    price_obs = filled_g["price"].to_numpy(dtype=float)
+    lo, hi = np.percentile(price_obs, [1, 99])
+    pair = pd.DataFrame({"price": price_obs,
+                         "price_clip": np.clip(price_obs, lo, hi),
+                         "img_mean": feats["img_mean"].to_numpy(dtype=float)})
+    r_raw = float(pair["price"].corr(pair["img_mean"]))                       # 피어슨(이상치 그대로)
+    r_clip = float(pair["price_clip"].corr(pair["img_mean"]))                 # 1/99 클리핑 후
+    r_log = float(np.log1p(pair["price_clip"]).corr(np.log1p(pair["img_mean"])))  # 로그 스케일
+    r_spear = float(pair["price"].corr(pair["img_mean"], method="spearman"))  # 순서만(외점 강인)
+    # 구성 타당도: 썸네일 밝기는 *원래 가격*에 묶어 생성했다(`data_gen.make_thumbnails`).
+    # 정답지는 검증 전용 원칙은 그대로 두되, "파이프라인이 신호를 주워야 검사가 산다"는 확인에만 쓴다.
+    gt_path = ROOT / "data" / "_groundtruth_price.csv"
+    r_true = float("nan")
+    if gt_path.exists():
+        gt = pd.read_csv(gt_path)["price_true"].to_numpy(dtype=float)
+        r_true = float(pd.Series(gt).corr(pair["img_mean"]))
+    var = pd.DataFrame([
+        {"잣대": "피어슨(원본)", "r": round(r_raw, 4), "무엇을 다른 문장으로 만드나": "이상치 248행이 상관을 깎는다"},
+        {"잣대": "피어슨(1·99 클리핑)", "r": round(r_clip, 4), "무엇을 다른 문장으로 만드나": "처리 정책 하나가 r 의 2~4배"},
+        {"잣대": "피어슨(log1p)", "r": round(r_log, 4), "무엇을 다른 문장으로 만드나": "스케일 선택도 결론 입력값"},
+        {"잣대": "스피어만(원본)", "r": round(r_spear, 4), "무엇을 다른 문장으로 만드나": "순서 기반이라 외점에 강함"},
+        {"잣대": "vs 생성 원본(타당도)", "r": round(r_true, 4), "무엇을 다른 문장으로 만드나": "파이프라인이 신호를 주웠다 = 검사 유효"},
+    ])
+    var.to_csv(REP / "correlation_variants.csv", index=False)
+    m["correlation_variants"] = {r["잣대"]: r["r"] for _, r in var.iterrows()}
+    m["correlation_주의"] = ("r(price,img_mean)=0.119 는 '이상치 미처리 + 피어슨' 조합의 측정값이다. "
+                          "같은 데이터에서 클리핑·로그·스피어만은 r 을 올린다. 따라서 '이미지로 가격을 설명할 수 "
+                          "없다'는 비즈니스 결론이 아니라 **잣대 의존적 관측**이다. 그리고 이 데이터에는 노출·클릭 "
+                          "컬럼이 0개라 CTR·CVR 은 정의조차 되지 않는다(probe_a1_2 실측).")
+    m["insights_key"] = {"img_mean_실체": "썸네일 (32,32,3) uint8 의 픽셀 평균 = 밝기(0~255). KPI 아님",
+                         "img_mean_결론": f"피어슨 {r_raw:.3f} / 클리핑 {r_clip:.3f} / log {r_log:.3f} / "
+                                          f"스피어만 {r_spear:.3f} → 잣대에 따라 크기 변화, 방향은 +로 유지",
+                         "참여지표": "impressions·clicks 0컬럼 → CTR/CVR 계산 불가(요구사항 결함으로 기록)"}
 
     # --- E5. 6종 시각화 ---------------------------------------------------------------------
     fig, ax = plt.subplots(figsize=(6, 3.6))
@@ -231,7 +266,20 @@ def main() -> None:
     lines.append(f"- 1장당: 순수 Python {v['pure_python_s_per_image']}s · 행 루프 {v['rowloop_s_per_image']}s · 벡터화 {v['vectorized_s_per_image']}s")
     lines.append(f"- 배율: 순수 Python vs 벡터화 **{v['speedup_pure_vs_vectorized']}배** / vs 행 루프 **{v['speedup_pure_vs_rowloop']}배** (표본 {v['n_pure_sample']}장)")
     lines.append("\n## 상관\n")
-    lines.append(f"- price vs img_mean: **r={m['correlation']['price__img_mean']}** / price vs rating: r={m['correlation']['price__rating']}")
+    lines.append(f"- price vs img_mean: **r={m['correlation']['price__img_mean']}** (피어슨 · 이상치 미처리 · n=1,200)"
+                 f" / price vs rating: r={m['correlation']['price__rating']} (피어슨 · 이상치 미처리 · n=1,200)")
+    lines.append("")
+    lines.append("`img_mean` 은 썸네일 (32,32,3) 배열의 **픽셀 평균 = 밝기**다(0~255). 클릭률·전환율이 아니다 — "
+                 "이 테이블에는 노출·클릭 컬럼이 **0개**라서 CTR 을 정의할 수 없다(`reports/correlation_variants.csv`).")
+    lines.append("")
+    lines.append("상관 하나만 적으면 결론이 잣대에 의존한다는 사실이 사라진다. 같은 두 변수를 네 잣대로 재면:")
+    lines.append("")
+    lines.append("| 잣대 | r | |")
+    lines.append("|---|---|---|")
+    for k, v in m["correlation_variants"].items():
+        lines.append(f"| {k} | {v} | |")
+    lines.append("")
+    lines.append(f"> {m['correlation_주의']}")
     lines.append("\n## RFM 세분화\n")
     for k, d in m["rfm"]["segments"].items():
         lines.append(f"- {k}: n={d['n']} · 매출 {d['매출점유율_%']}% · 평균 R {d['평균Recency_일']}일")

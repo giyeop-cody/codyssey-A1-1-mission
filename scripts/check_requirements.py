@@ -85,6 +85,18 @@ def main() -> int:
                        for o in c.get("outputs", [{}]) if isinstance(o, dict))
         check("노트북 실행 결과 포함(nbconvert --execute 로 생성)", executed, f"cells={len(raw['cells'])}")
 
+    analysis_text = (ROOT / "reports/analysis.md").read_text(encoding="utf-8") \
+        if (ROOT / "reports/analysis.md").exists() else ""
+    # 5-b) 계수에는 잣대가 붙어 있어야 한다 (원칙 2026-09-15: "명시 없는 상관계수는 값이 아니다")
+    #        r=0.3 처럼만 쓰면 잣대에 따라 5배가 움직이는 값을 단정처럼 만든다 → 라인 단위로 본다.
+    if "import re" not in t:
+        pass
+    doc = analysis_text + "\n" + readme
+    coef_lines = [ln for ln in doc.splitlines() if re.search(r"[rρ]\s*[=≈]\s*-?\d", ln)]
+    naked = [ln.strip()[:60] for ln in coef_lines if not re.search(r"피어슨|스피어만|클리핑|log1p|spearman|pearson", ln)]
+    check(f"상관계수 {len(coef_lines)}줄 전부 잣대 병기", bool(coef_lines) and not naked,
+          ("미비: " + " / ".join(naked[:2])) if naked else "피어슨|스피어만|클리핑|log1p 언급 확인")
+
     # 6) 재현성: 같은 시드로 다시 만들어도 해시 동일
     meta = ROOT / "data/dataset_meta.json"
     check("data/dataset_meta.json 존재(시드 기록)", meta.exists())

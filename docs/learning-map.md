@@ -47,6 +47,8 @@
 | A1-1-T11 | 인사이트 3개 | README | 근거/실행/검증 소제목 3종 × 3건 | 3 | T10 | ☑ |
 | A1-1-T12 | 자동 검수 | `check_requirements.py` | ALL PASS 없이는 push 불가(그림 존재·인사이트 정규식·컬럼수) | 2 | T11 | ☑ |
 | A1-1-T13 | 실측 소요 기록 | 이 보드의 h 열 실제값 | 계획 60h 대비 실측을 1줄로(→ 맵 §8 보정) | 0.5 | T12 | ◐ |
+| A1-1-T14 | 참여지표 확장(백로그) | `src/data_gen.py` 에 impressions·clicks·conversions + `ctr.py` | CTR·CVR 표 + **"상품당 노출 500건이면 표준오차 0.76%p > 효과 0.40%p → 판별 불가"** 를 재현(시뮬 3조건) | 4 | T1 | ◐(설계만: probe_a1_2 (d)) |
+| A1-1-T15 | 실데이터 재검증(백로그) | `reports/correlation_variants_real.csv` | UT-Zappos50K(0.9GB)·AVA(32GB) 중 하나로 같은 코드 재실행, 부호 유지 여부 표 | 6 | T14 | ◐(샌드박스 접근성만 실측: kaggle HEAD 404 / github 200) |
 
 ## 4. 위험 · Plan B (studylog 04-plan에서)
 

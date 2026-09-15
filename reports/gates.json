@@ -20,7 +20,7 @@
     "how": "check_requirements + 노트북 assert"
   },
   "G5": {
-    "value": "벡터화/행루프 0.26배, 순수Python 대비 10.8배(표본 150장)",
+    "value": "벡터화/행루프 0.28배, 순수Python 대비 9.2배(표본 150장)",
     "pass": true,
     "how": "run_analysis E3 — 배율은 비교 대상과 함께만 허용"
   }
