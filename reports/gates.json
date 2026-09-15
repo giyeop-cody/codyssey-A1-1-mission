@@ -20,8 +20,13 @@
     "how": "check_requirements + 노트북 assert"
   },
   "G5": {
-    "value": "벡터화/행루프 0.28배, 순수Python 대비 9.2배(표본 150장)",
+    "value": "벡터화/행루프 0.31배, 순수Python 대비 10.2배(표본 150장)",
     "pass": true,
     "how": "run_analysis E3 — 배율은 비교 대상과 함께만 허용"
+  },
+  "G6": {
+    "value": "스펙 60개 · r 0.011~0.6672(중위 0.339) · 부호일치 100.0% · 카테고리 통제 최소 r=0.011",
+    "pass": true,
+    "how": "scripts/spec_curve.py(전 스펙 격자) — 최소 스펙이 0.1 미만이면 '통제하면 사라진다'를 인정한 것"
   }
 }

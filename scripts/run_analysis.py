@@ -280,6 +280,16 @@ def main() -> None:
         lines.append(f"| {k} | {v} | |")
     lines.append("")
     lines.append(f"> {m['correlation_주의']}")
+    scj = REP / "spec_curve_summary.json"
+    if scj.exists():
+        sc = json.loads(scj.read_text(encoding="utf-8"))
+        lines.append("")
+        lines.append(f"방어 가능한 스펙 {sc['n_specs']}개 전수(계수 5종×이상치 3종×스케일 2종×통제 2종) — "
+                     f"`scripts/spec_curve.py`: r **{sc['r_최소']}~{sc['r_최대']}**, 중위 {sc['r_중위']:.3f}, "
+                     f"부호일치 {sc['부호일치율'] * 100:.0f}%, p<0.05 비율 {sc['p_0.05_미만_비율'] * 100:.1f}%. "
+                     f"최소값은 **카테고리를 통제**한 스펙에서 나온다({sc['r_최소']}) → 이미지-가격 관계는 카테고리 경로를 통해 들어온다. "
+                     f"강건 추정 중위값은 pb20 {sc['강건추정치']['pb20_중위']} / skipped {sc['강건추정치']['skipped_중위']}"
+                     f"(skipped 은 최소 {sc['강건추정치']['skipped_생존n_최소']}행만 남긴다). 그림 07, 표 `reports/spec_curve.csv`.")
     lines.append("\n## RFM 세분화\n")
     for k, d in m["rfm"]["segments"].items():
         lines.append(f"- {k}: n={d['n']} · 매출 {d['매출점유율_%']}% · 평균 R {d['평균Recency_일']}일")

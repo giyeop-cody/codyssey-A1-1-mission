@@ -40,13 +40,13 @@
   },
   "vectorization": {
     "loop_s": 0.0079,
-    "vectorized_s": 0.0281,
-    "speedup_loop_vs_vec": 0.28,
-    "pure_python_s_per_image": 0.00021,
-    "vectorized_s_per_image": 2.3e-05,
+    "vectorized_s": 0.0253,
+    "speedup_loop_vs_vec": 0.31,
+    "pure_python_s_per_image": 0.00022,
+    "vectorized_s_per_image": 2.1e-05,
     "rowloop_s_per_image": 7e-06,
-    "speedup_pure_vs_vectorized": 9.2,
-    "speedup_pure_vs_rowloop": 32.6,
+    "speedup_pure_vs_vectorized": 10.2,
+    "speedup_pure_vs_rowloop": 32.8,
     "n_pure_sample": 150
   },
   "correlation": {

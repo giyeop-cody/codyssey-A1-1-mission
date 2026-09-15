@@ -23,6 +23,17 @@ gates = {
     "G5": {"value": f"벡터화/행루프 {m['vectorization']['speedup_loop_vs_vec']}배, 순수Python 대비 {m['vectorization']['speedup_pure_vs_vectorized']}배(표본 {m['vectorization']['n_pure_sample']}장)",
            "pass": "n_pure_sample" in m["vectorization"], "how": "run_analysis E3 — 배율은 비교 대상과 함께만 허용"},
 }
+sc_path = ROOT / "reports" / "spec_curve_summary.json"
+sc = json.loads(sc_path.read_text(encoding="utf-8")) if sc_path.exists() else None
+if sc:
+    gates["G6"] = {"value": f"스펙 {sc['n_specs']}개 · r {sc['r_최소']}~{sc['r_최대']}(중위 {round(sc['r_중위'], 3)}) · "
+                            f"부호일치 {round(sc['부호일치율'] * 100, 1)}% · 카테고리 통제 최소 r={sc['r_최소']}",
+                   "pass": sc["n_specs"] >= 40 and sc["r_최소"] < 0.1,
+                   "how": "scripts/spec_curve.py(전 스펙 격자) — 최소 스펙이 0.1 미만이면 '통제하면 사라진다'를 인정한 것"}
+else:
+    gates["G6"] = {"value": "reports/spec_curve_summary.json 없음 → 스펙 커브 미실행", "pass": False,
+                   "how": "python scripts/spec_curve.py 로 생성"}
+
 out = ROOT / "reports" / "gates.json"
 out.write_text(json.dumps(gates, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 for k, v in gates.items():

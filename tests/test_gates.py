@@ -45,3 +45,9 @@ def test_05_G5_벡터화_n배에_조건_명시_무엇과_비교():
     from conftest import gate_record
     gate_record("G5")
 
+@needs()
+def test_06_G6_방어_가능한_분석_선택을_전부_돌려_r_분포():
+    """[G6] 방어 가능한 분석 선택을 **전부** 돌려 r 분포를 보고하고, 단일 계수 인용을 금지 | 근거(학습기록 실측): """
+    from conftest import gate_record
+    gate_record("G6")
+

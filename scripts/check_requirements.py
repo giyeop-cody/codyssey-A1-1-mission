@@ -97,6 +97,14 @@ def main() -> int:
     check(f"상관계수 {len(coef_lines)}줄 전부 잣대 병기", bool(coef_lines) and not naked,
           ("미비: " + " / ".join(naked[:2])) if naked else "피어슨|스피어만|클리핑|log1p 언급 확인")
 
+    # 5-c) 단일 계수 인용 금지: 스펙 커브가 실제로 돌아야 한다 (60스펙·README 인용)
+    sc_csv = ROOT / "reports/spec_curve.csv"
+    n_spec = len(pd.read_csv(sc_csv)) if sc_csv.exists() else 0
+    check("스펙 커브 40개 이상 실행(reports/spec_curve.csv)", n_spec >= 40, f"{n_spec}행")
+    check("README 가 스펙 커브 구간을 인용(최솟값·최댓값 둘 다)",
+          ("스펙 커브" in readme) and ("0.011" in readme) and ("0.66" in readme),
+          "'스펙 커브' + 최소 0.011 + 최대 0.66x 언급을 요구")
+
     # 6) 재현성: 같은 시드로 다시 만들어도 해시 동일
     meta = ROOT / "data/dataset_meta.json"
     check("data/dataset_meta.json 존재(시드 기록)", meta.exists())
