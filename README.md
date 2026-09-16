@@ -1,3 +1,4 @@
+<!-- hand-authored -->
 # A1-1 — 쇼핑몰 단골 찾기 (멀티모달 EDA · RFM 세분화)
 
 > 요구사항 8개를 **직접 실행한 결과**로 채운 구현 레포. 모든 수치는 `reports/metrics.json`에 있다

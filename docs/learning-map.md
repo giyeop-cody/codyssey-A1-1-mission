@@ -43,11 +43,11 @@
 | A1-1-T6 | 통계·상관 | 요약표·상관표 | 셀마다 "수치 1 + 시사점 1". 무상관도 결론으로 서술 | 4 | T5 | ☑ |
 | A1-1-T7 | 시각화 6종 | `figures/01..06.png` | 제목·축라벨 전수 검사 스크립트 PASS | 7 | T6 | ☑ |
 | A1-1-T8 | RFM + 세분화 ≥4 | `calculate_rfm` + 세그먼트 표 | VIP 평균 R이 전체 중앙값 **보다 작음**(기대 6.5일; 역순 실수는 45.0일) · 세그먼트 4개↑ | 6 | T6 | ☑ |
-| A1-1-T9 | `qcut` 동률 처리 | 스코어링 코드 | ties에서 `ValueError: Bin edges must be unique` 재현 후 대안 문서화 | 1 | T8 | ◐ |
+| A1-1-T9 | `qcut` 동률 처리 | 스코어링 코드 | ties에서 `ValueError: Bin edges must be unique` 재현 후 대안 문서화 | 1 | T8 | ☑ · 실데이터에서 미재현 확인(M4) → 조건부 권고로 격하 |
 | A1-1-T10 | 리포트 노트북 | `analysis_report.ipynb` | 단계마다 마크다운 3줄↑, Run All 재현 | 5 | T7,T8 | ☑ |
 | A1-1-T11 | 인사이트 3개 | README | 근거/실행/검증 소제목 3종 × 3건 | 3 | T10 | ☑ |
 | A1-1-T12 | 자동 검수 | `check_requirements.py` | ALL PASS 없이는 push 불가(그림 존재·인사이트 정규식·컬럼수) | 2 | T11 | ☑ |
-| A1-1-T13 | 실측 소요 기록 | 이 보드의 h 열 실제값 | 계획 60h 대비 실측을 1줄로(→ 맵 §8 보정) | 0.5 | T12 | ◐ |
+| A1-1-T13 | 실측 소요 기록 | `tools/hours.py` 출력(커밋 86·작업일 1) | 순 작업시간은 계측 못 해 **커밋·작업일수로 대체**했음을 명시(대체 사실 기록). A2-1부터 start:/end: 로 실측 | 0.5 | T12 | ◐ |
 | A1-1-T14 | 참여지표 확장(백로그) | `src/data_gen.py` 에 impressions·clicks·conversions + `ctr.py` | CTR·CVR 표 + **"상품당 노출 500건이면 표준오차 0.76%p > 효과 0.40%p → 판별 불가"** 를 재현(시뮬 3조건) | 4 | T1 | ◐(설계만: probe_a1_2 (d)) |
 | A1-1-T15 | 실데이터 재검증(백로그) | `reports/correlation_variants_real.csv` | UT-Zappos50K(0.9GB)·AVA(32GB) 중 하나로 같은 코드 재실행, 부호 유지 여부 표 | 6 | T14 | ◐(샌드박스 접근성만 실측: kaggle HEAD 404 / github 200) |
 

@@ -6,6 +6,9 @@
 """
 import os
 import pathlib
+import subprocess
+import sys
+
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -15,6 +18,43 @@ STRICT = os.environ.get("MISSION_STRICT") == "1"
 def implemented() -> bool:
     """미션 코드가 한 줄이라도 있는가. 없으면 게이트 검사는 판정할 대상이 없다."""
     return (ROOT / "reports" / "gates.json").exists() or any((ROOT / d).exists() for d in ("src", "figures", "notebooks"))
+
+
+def ensure_inputs():
+    """클론 직후·삭제된 상태에서도 테스트가 돌아가도록 파생 산출물을 만든다(autouse fixture 가 매 테스트 전에 호출).
+
+    교훈 2건:
+    - 산출물을 gitignore 하고 '존재 검사'만 하면 클론에서 tests 가 붉어진다(그래서 figures·reports 는 추적).
+    - bootstrap 을 test_self_check 안에만 두면 gate 테스트는 그걸 모른다(2026-09-16: 클론에서 4→5 failed).
+      그래서 **conftest 의 autouse** 로 둔다.
+    """
+    have_data_gen = (ROOT / "src" / "data_gen.py").exists()
+    have_run_all = (ROOT / "scripts" / "run_all.py").exists()
+    if not (have_data_gen or have_run_all):
+        return                                   # 미구현 레포: skip 판정은 needs() 가 한다
+    figs_ok = (ROOT / "figures").exists() and any((ROOT / "figures").glob("*.png"))
+    metrics_ok = (ROOT / "reports" / "metrics.json").exists()
+    if have_run_all and not (figs_ok and metrics_ok):
+        subprocess.run([sys.executable, "scripts/run_all.py"], cwd=ROOT, check=True,
+                       capture_output=True, text=True)
+    if have_data_gen:
+        if not (ROOT / "data" / "products.csv").exists():
+            subprocess.run([sys.executable, "src/data_gen.py", "--seed", "42"], cwd=ROOT, check=True,
+                           capture_output=True, text=True)
+        if (ROOT / "scripts" / "run_analysis.py").exists() and not (metrics_ok and figs_ok):
+            subprocess.run([sys.executable, "scripts/run_analysis.py"], cwd=ROOT, check=True,
+                           capture_output=True, text=True)
+        if (ROOT / "scripts" / "spec_curve.py").exists() and not (ROOT / "reports" / "spec_curve.csv").exists():
+            subprocess.run([sys.executable, "scripts/spec_curve.py"], cwd=ROOT, check=True,
+                           capture_output=True, text=True)
+    if (ROOT / "scripts" / "record_gates.py").exists():
+        subprocess.run([sys.executable, "scripts/record_gates.py"], cwd=ROOT, check=True,
+                       capture_output=True, text=True)
+
+
+@pytest.fixture(autouse=True)
+def _bootstrap():
+    ensure_inputs()
 
 
 def gate_record(gid: str):
