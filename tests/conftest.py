@@ -47,6 +47,10 @@ def ensure_inputs():
         if (ROOT / "scripts" / "spec_curve.py").exists() and not (ROOT / "reports" / "spec_curve.csv").exists():
             subprocess.run([sys.executable, "scripts/spec_curve.py"], cwd=ROOT, check=True,
                            capture_output=True, text=True)
+    nb_ok = (ROOT / "notebooks").exists() and any((ROOT / "notebooks").glob("*.ipynb"))
+    if not nb_ok and (ROOT / "scripts" / "build_notebook.py").exists():
+        subprocess.run([sys.executable, "scripts/build_notebook.py"], cwd=ROOT, check=True,
+                       capture_output=True, text=True)
     if (ROOT / "scripts" / "record_gates.py").exists():
         subprocess.run([sys.executable, "scripts/record_gates.py"], cwd=ROOT, check=True,
                        capture_output=True, text=True)
