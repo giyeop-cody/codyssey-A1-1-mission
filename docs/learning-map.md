@@ -17,7 +17,7 @@
 | P7 노트북 서술 | 6h | `analysis_report.ipynb` | 단계마다 마크다운 3줄+ |
 | P8 README·인사이트3 | 5h | README | 근거/실행/검증 3요소 |
 | P9 제출 전 자가채점 | 2h | 체크리스트 결과 | `check_requirements.py` ALL PASS |
-| 보너스 욕심 | 보너스는 P0~P9 ALL PASS 이후에만 시작. 미달 시 커밋에 "미수행" 명시 |
+| 보너스 욕심 | 보너스는 P0~P9 ALL PASS 이후에만 시작. 미달 시 커밋에 "미수행" 명시 | — | — |
 | 보너스 | 학습가치 | 비용 | 이번 수행 |
 
 ## 2. 통과 게이트 — 이 숫자가 나오면 끝
@@ -51,7 +51,7 @@
 | A1-1-T14 | 참여지표 확장(백로그) | `src/data_gen.py` 에 impressions·clicks·conversions + `ctr.py` | CTR·CVR 표 + **"상품당 노출 500건이면 표준오차 0.76%p > 효과 0.40%p → 판별 불가"** 를 재현(시뮬 3조건) | 4 | T1 | ◐(설계만: probe_a1_2 (d)) |
 | A1-1-T15 | 실데이터 재검증(백로그) | `reports/correlation_variants_real.csv` | UT-Zappos50K(0.9GB)·AVA(32GB) 중 하나로 같은 코드 재실행, 부호 유지 여부 표 | 6 | T14 | ◐(샌드박스 접근성만 실측: kaggle HEAD 404 / github 200) |
 
-## 4. 위험 · Plan B (studylog 04-plan에서)
+## 4. 위험 · Plan B (studylog 04-plan 의 원본 표를 그대로 옮긴 것)
 
 | 위험 | 대응 |
 |---|---|
