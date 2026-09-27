@@ -8,6 +8,24 @@
 > 정책: 원시 데이터(`data/`)만 gitignore 이고 **산출물(`figures/`·`reports/`·`notebooks/`)은 제출물이므로 커밋**한다.
 > 그래서 클론 직후 `pytest` 한 번으로 검증이 돈다(그림·지표가 없을 때만 `data_gen`·`run_analysis` 를 자동 재실행).
 
+
+<!-- codyssey-links:start -->
+## 🔗 Codyssey 연결
+
+| 항목 | 링크 |
+|---|---|
+| **과제** | **A1-1** — 쇼핑몰에서 누가 자주 오고 많이 사는지 분석해서 단골 찾기 · 심화(Advanced) 「AI/SW 심화」 · 데이터 분석·EDA · 60h |
+| 미션 원문 (정의서) | [`A1-1/a1-1-description.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/a1-1-description.md) · [`A1-1-mission.jpg`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/a1-1-mission.jpg) · [`meta.json`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/meta.json) |
+| 이 과제 연결 카드 | [`A1-1/links.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/links.md) |
+| 전체 연결 대장 | [`LINKS.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/LINKS.md) · 진행 현황 [`PROGRESS.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/PROGRESS.md) · [원문 API URL 41개](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/codyssey-all-urls.md) |
+| 과정 허브 | [codyssey-A-studylog-hub](https://github.com/giyeop-cody/codyssey-A-studylog-hub) `missions/A1-1/` · `repos/A1-1/` 서브모듈 |
+| 통합 레포 | [codyssey](https://github.com/giyeop-cody/codyssey) → `A1-1/`(제출물) · `A1-1-studylog/`(학습기록) 서브모듈 |
+| A→M 연결 | [codyssey-AI-Applied](https://github.com/giyeop-cody/codyssey-AI-Applied) '다음 단계 (M 과정 연결)' |
+| 같은 과제의 다른 레포 | <sub>학습기록(스터디)</sub> [giyeop-cody/codyssey-A1-1-studylog](https://github.com/giyeop-cody/codyssey-A1-1-studylog) 🔒 · <sub>선행/개인</sub> [giyeop-cody/ecommerce-rfm-analysis](https://github.com/giyeop-cody/ecommerce-rfm-analysis) |
+
+> 🔒 = 비공개 레포. 상태·pin 커밋은 연결 카드와 `PROGRESS.md` 에 있다. 이 표는 2026-09-27 기준이며 미션 원문 3종은 원본 데이터라 진행 상태를 쓰지 않는다.
+<!-- codyssey-links:end -->
+
 ## 실행
 
 ```bash
