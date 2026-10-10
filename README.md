@@ -23,7 +23,7 @@
 | A→M 연결 | [codyssey-AI-Applied](https://github.com/giyeop-cody/codyssey-AI-Applied) '다음 단계 (M 과정 연결)' |
 | 같은 과제의 다른 레포 | <sub>학습기록(스터디)</sub> [giyeop-cody/codyssey-A1-1-studylog](https://github.com/giyeop-cody/codyssey-A1-1-studylog) 🔒 · <sub>선행/개인</sub> [giyeop-cody/ecommerce-rfm-analysis](https://github.com/giyeop-cody/ecommerce-rfm-analysis) |
 
-> 🔒 = 비공개 레포. 상태·pin 커밋은 연결 카드와 `PROGRESS.md` 에 있다. 이 표는 2026-09-27 기준이며 미션 원문 3종은 원본 데이터라 진행 상태를 쓰지 않는다.
+> 🔒 = 비공개 레포. 상태·pin 커밋은 연결 카드와 `PROGRESS.md` 에 있다. 이 표는 2026-10-10 기준이며 미션 원문 3종은 원본 데이터라 진행 상태를 쓰지 않는다.
 <!-- codyssey-links:end -->
 
 ## 실행
