@@ -160,12 +160,12 @@ def main() -> None:
     m["correlation_variants"] = {r["잣대"]: r["r"] for _, r in var.iterrows()}
     m["correlation_주의"] = ("r(price,img_mean)=0.119 는 '이상치 미처리 + 피어슨' 조합의 측정값이다. "
                           "같은 데이터에서 클리핑·로그·스피어만은 r 을 올린다. 따라서 '이미지로 가격을 설명할 수 "
-                          "없다'는 비즈니스 결론이 아니라 **잣대 의존적 관측**이다. 그리고 이 데이터에는 노출·클릭 "
+                          "없다'는 비즈니스 결론이 아니라 **잣대 의존적 관측**이다. 이미지의 사업적 확장은 밝기·대비 개선과 CTR·구매 전환의 관계를 별도로 검증한다. 그리고 이 데이터에는 노출·클릭 "
                           "컬럼이 0개라 CTR·CVR 은 정의조차 되지 않는다(probe_a1_2 실측).")
-    m["insights_key"] = {"img_mean_실체": "썸네일 (32,32,3) uint8 의 픽셀 평균 = 밝기(0~255). KPI 아님",
+    m["insights_key"] = {"img_mean_실체": "썸네일 (32,32,3) uint8를 255로 나눈 RGB 픽셀 평균(0~1). 휘도 및 KPI와 구분",
                          "img_mean_결론": f"피어슨 {r_raw:.3f} / 클리핑 {r_clip:.3f} / log {r_log:.3f} / "
                                           f"스피어만 {r_spear:.3f} → 잣대에 따라 크기 변화, 방향은 +로 유지",
-                         "참여지표": "impressions·clicks 0컬럼 → CTR/CVR 계산 불가(요구사항 결함으로 기록)"}
+                         "참여지표": "노출·클릭·세션 로그 없음 → CTR·구매 전환 효과 미검증. 원문 필수 요구의 결함이 아닌 확장 실험의 데이터 한계"}
 
     # --- E5. 6종 시각화 ---------------------------------------------------------------------
     fig, ax = plt.subplots(figsize=(6, 3.6))
@@ -277,7 +277,7 @@ def main() -> None:
     lines.append(f"- price vs img_mean: **r={m['correlation']['price__img_mean']}** (피어슨 · 이상치 미처리 · n=1,200)"
                  f" / price vs rating: r={m['correlation']['price__rating']} (피어슨 · 이상치 미처리 · n=1,200)")
     lines.append("")
-    lines.append("`img_mean` 은 썸네일 (32,32,3) 배열의 **픽셀 평균 = 밝기**다(0~255). 클릭률·전환율이 아니다 — "
+    lines.append("`img_mean` 은 썸네일 (32,32,3) 배열을 255로 나눈 **RGB 픽셀 평균**이다(0~1). 휘도와 구분하며 클릭률·전환율이 아니다 — "
                  "이 테이블에는 노출·클릭 컬럼이 **0개**라서 CTR 을 정의할 수 없다(`reports/correlation_variants.csv`).")
     lines.append("")
     lines.append("상관 하나만 적으면 결론이 잣대에 의존한다는 사실이 사라진다. 같은 두 변수를 네 잣대로 재면:")
@@ -304,6 +304,7 @@ def main() -> None:
     lines.append(f"- VIP 평균 Recency **{m['rfm']['VIP_평균Recency']}일** vs 비VIP {m['rfm']['비VIP_평균Recency']}일 "
                  f"(gate 통과: {m['rfm']['gate_VIP_recency_더작음']})")
     lines.append(f"- 점수를 뒤집지 않으면: 'VIP'로 잡히는 집단의 평균 R **{m['rfm']['역순실수_VIP_평균Recency']}일**, 매출 점유 {m['rfm']['역순실수_매출점유율_%']}%")
+    lines.append("\n## 이미지 참여·전환 분석의 방향 (2026-10-12)\n\n이미지–가격 상관은 보조 EDA다. 사업적 가설은 상품 디테일을 보존한 밝기·대비 개선이 클릭률과 구매 전환에 미치는 영향이다. 현재 데이터에 노출·클릭·세션 로그가 없어 효과를 검증하지 않았다. 필수 이미지 평균·표준편차와 상품명 피처는 유지한다. [선행 연구와 실험 계획](../docs/image-engagement-plan.md).")
     (REP / "analysis.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (REP / "metrics.json").write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(m, ensure_ascii=False, indent=2))

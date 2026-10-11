@@ -95,7 +95,12 @@ naive_score = pd.qcut(rfm["recency"], 5, labels=False, duplicates="drop") + 1   
 bad = rfm[naive_score == 5]
 print(f"[실수 재현] 안 뒤집으면 VIP 후보 {len(bad)}명의 평균 Recency {bad['recency'].mean():.1f}일, 매출 점유 {bad['monetary'].sum()/rfm['monetary'].sum()*100:.1f}%")""")
 
-md("""## 6. 인사이트 (근거 → 실행 → 검증)""")
+md("""## 6. 인사이트 (근거 → 실행 → 검증)
+이미지 평균·표준편차와 상품명 피처는 원문 필수 요구다. 이미지–가격 상관은 보조 EDA이며,
+사업적 확장 가설은 과노출로 상품 디테일을 잃지 않는 밝기·대비 개선이 클릭률과 구매 전환에 미치는 영향이다.
+현재 합성 데이터에는 노출·클릭·세션 기록이 없어 효과를 검증하지 않았다.
+라쿠텐 연구의 CTR 개선은 밝기·대비·선명도 등을 함께 조정한 결과이며 밝기 단독 효과나 구매 전환의 증거가 아니다.
+[연구 원문](https://bjornstenger.github.io/papers/chae_icip2018.pdf), [실험 계획](../docs/image-engagement-plan.md).""")
 code("""ins = ana.report_insights(rfm)
 for k, v in ins.items():
     print("●", k)
