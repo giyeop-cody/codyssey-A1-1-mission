@@ -51,10 +51,16 @@ class DataAnalyzer:
                               fallback: str = "median", columns: list[str] | None = None) -> pd.DataFrame:
         """결측 처리.  `median`: 열 전체 중앙값 / `groupby_median`: (category, 열)별 중앙값.
 
-        group이 min_group 미만이면 그 group만 fallback(전체 중앙값)으로 되돌린다 — 작은 group의
+        group이 min_group 미만이면 그 group만 fallback(median/mean/zero)으로 되돌린다 — 작은 group의
         중앙값은 noise라는 판단(설계 기록 docs/03의 결정 4).
         Returns: products 사본 (N, C) → 모양은 그대로, NaN 수만 0으로.
         """
+        if strategy not in {"median", "groupby_median"}:
+            raise ValueError(f"미지원 strategy: {strategy}")
+        if fallback not in {"median", "mean", "zero"}:
+            raise ValueError(f"미지원 fallback: {fallback}")
+        if min_group < 1:
+            raise ValueError("min_group must be >= 1")
         df = self.products.copy()
         cols = columns or [c for c in df.columns if df[c].isna().any()]
         for col in cols:
@@ -68,8 +74,10 @@ class DataAnalyzer:
                 sizes = g.size()
                 med = g.transform("median")
                 small = sizes[sizes < min_group].index
-                med[df["category"].isin(small)] = df[col].median()
-                df[col] = df[col].fillna(med)
+                global_value = {"median": df[col].median, "mean": df[col].mean,
+                                "zero": lambda: 0.0}[fallback]()
+                med[df["category"].isin(small)] = global_value
+                df[col] = df[col].fillna(med).fillna(global_value)
                 self.log[f"{col}_small_groups"] = sorted(map(str, small))
             else:
                 raise ValueError(f"미지원 strategy: {strategy}")
@@ -141,7 +149,9 @@ class DataAnalyzer:
         df = self.products if df is None else df
         num = df.select_dtypes(include=[np.number])
         out = num.agg(["count", "mean", "std", "min", "median", "max"]).T
-        return out
+        out["25%"] = num.quantile(0.25)
+        out["75%"] = num.quantile(0.75)
+        return out[["count", "mean", "std", "min", "25%", "median", "75%", "max"]]
 
     def correlation(self, df: pd.DataFrame | None = None, other: pd.DataFrame | None = None) -> pd.DataFrame:
         df = self.products if df is None else df

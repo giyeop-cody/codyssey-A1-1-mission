@@ -256,6 +256,14 @@ def main() -> None:
     lines.append(f"- 카테고리별 중앙값: **{m['imputation']['groupby_median_MAE']}**")
     lines.append(f"- 카테고리별 MAE · 전체 중앙값: {m['imputation']['MAE_by_category']['전체중앙값']}")
     lines.append(f"- 카테고리별 MAE · 그룹별 중앙값: {m['imputation']['MAE_by_category']['그룹중앙값']}")
+    lines.append("\n## 기술통계와 사분위수\n")
+    lines.append("| 변수 | 평균 | 중앙값 | 표준편차 | Q1(25%) | Q3(75%) |\n|---|---:|---:|---:|---:|---:|")
+    for variable, row in summ.iterrows():
+        lines.append(f"| {variable} | {row['mean']:.3f} | {row['median']:.3f} | {row['std']:.3f} | {row['25%']:.3f} | {row['75%']:.3f} |")
+    price_row = summ.loc["price"]
+    lines.append(f"\n결측 대치 후 가격의 가운데 50%는 {price_row['25%']:,.1f}~{price_row['75%']:,.1f}원이다. "
+                 f"평균 {price_row['mean']:,.1f}원과 중앙값 {price_row['median']:,.1f}원의 차이는 오른쪽 꼬리의 영향을 나타낸다. "
+                 "IQR은 산포를 보여 주며 이상치 판정과 사업적 제외 판단은 별도로 한다.")
     lines.append("\n## IQR 이상치 플래그 비율\n")
     for k, v in m["iqr_flag_pct"].items():
         lines.append(f"- {k}: **{v}%**")

@@ -1,0 +1,9 @@
+{
+  "mission": "A1-1",
+  "command": "python -m pytest -q",
+  "exit_code": 0,
+  "summary": [
+    "............                                                             [100%]",
+    "12 passed in 2.54s"
+  ]
+}

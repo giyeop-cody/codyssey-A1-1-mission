@@ -39,14 +39,14 @@
     "clip_would_move_rows": 248
   },
   "vectorization": {
-    "loop_s": 0.0079,
-    "vectorized_s": 0.0253,
-    "speedup_loop_vs_vec": 0.31,
-    "pure_python_s_per_image": 0.00022,
-    "vectorized_s_per_image": 2.1e-05,
+    "loop_s": 0.0085,
+    "vectorized_s": 0.0214,
+    "speedup_loop_vs_vec": 0.4,
+    "pure_python_s_per_image": 0.00039,
+    "vectorized_s_per_image": 1.8e-05,
     "rowloop_s_per_image": 7e-06,
-    "speedup_pure_vs_vectorized": 10.2,
-    "speedup_pure_vs_rowloop": 32.8,
+    "speedup_pure_vs_vectorized": 21.8,
+    "speedup_pure_vs_rowloop": 55.0,
     "n_pure_sample": 150
   },
   "correlation": {
