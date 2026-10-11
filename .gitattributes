@@ -1,0 +1,4 @@
+
+* text=auto eol=lf
+*.csv -text
+fixtures/*.csv text eol=lf

@@ -18,5 +18,45 @@
   "verification_scope": "16 tests 통과. 원문 order_date 입력을 수용하고 생성 CSV에 해당 열을 추가했다. 상품명 name_word_count/name_length 피처를 추가했다. 전부 결측인 숫자 열은 근거 없는 중앙값 대신 0을 사용하고 로그에 명시한다. 분석 러너 및 노트북 7개 코드셀을 새로 실행했고 6종 그림을 노트북에 연결했다.",
   "all_requirements_certified": false,
   "remaining": [],
-  "verification_scope_complete": true
+  "verification_scope_complete": true,
+  "current_platform_tests": {
+    "mission": "A1-1",
+    "exit_code": 0,
+    "summary": [
+      "................                                                         [100%]",
+      "16 passed in 8.55s"
+    ],
+    "counts": {
+      "passed": 16
+    },
+    "date": "2026-10-12",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "scope": "Current platform pytest only; archived training and GUI evidence is separate."
+  },
+  "publication_review": {
+    "date": "2026-10-12",
+    "artifact_review_passed": true,
+    "blocking_issues": [],
+    "documented_limits": [],
+    "test_counts": {
+      "passed": 16
+    },
+    "gate_commands": [
+      {
+        "mission": "A1-1",
+        "command": "scripts/check_requirements.py",
+        "exit_code": 0,
+        "log": "reports\\current-verification\\A1-1-check_requirements-gate.log",
+        "summary": [
+          "[PASS] 노트북 실행 결과 포함(nbconvert --execute 로 생성)              cells=16",
+          "[PASS] 상관계수 5줄 전부 잣대 병기                                    피어슨|스피어만|클리핑|log1p 언급 확인",
+          "[PASS] 스펙 커브 40개 이상 실행(reports/spec_curve.csv)             60행",
+          "[PASS] README 가 스펙 커브 구간을 인용(최솟값·최댓값 둘 다)                  '스펙 커브' + 최소 0.011 + 최대 0.66x 언급을 요구",
+          "[PASS] data/dataset_meta.json 존재(시드 기록)                    ",
+          "---- 35/35 PASS"
+        ]
+      }
+    ],
+    "scope": "Implementation, retained artifact integrity and original-question coverage; not a personal-ability certification or a new full training run."
+  }
 }
