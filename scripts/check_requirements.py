@@ -33,7 +33,7 @@ def main() -> int:
     check("상품 컬럼 8개 이상", p.shape[1] >= 8, f"{p.shape[1]}개")
     n_types = len({str(x) for x in p.dtypes})
     check("타입 3종 이상(csv 읽기 기준)", n_types >= 3, f"{n_types}종: {sorted({str(x) for x in p.dtypes})}")
-    check("거래 테이블 필수 3컬럼", {"customer_id", "amount", "txn_date"} <= set(t.columns), str(list(t.columns)))
+    check("거래 테이블 필수 3컬럼", {"customer_id", "amount", "order_date"} <= set(t.columns), str(list(t.columns)))
 
     # 2) 클래스 설계 요구: 4개 메서드가 인자를 받는다(하드코딩 금지)
     sys.path.insert(0, str(ROOT / "src"))

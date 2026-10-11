@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from pipeline import DataAnalyzer  # noqa: E402
 
-plt.rcParams["font.family"] = ["Noto Sans CJK JP", "DejaVu Sans"]   # 한글 라벨 누락 방지(이 환경의 실재 폰트)
+plt.rcParams["font.family"] = ["Arial Unicode MS", "Noto Sans CJK JP", "DejaVu Sans"]   # 한글 라벨 누락 방지(이 환경의 실재 폰트)
 plt.rcParams["axes.unicode_minus"] = False
 
 FIG = ROOT / "figures"

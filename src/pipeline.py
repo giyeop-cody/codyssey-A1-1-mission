@@ -36,7 +36,17 @@ class DataAnalyzer:
         """타입·스키마를 점검하고 필요 타입을 캐스팅한다.  (self 를 그대로 반환 → 체이닝)"""
         p, t = self.products.copy(), self.transactions.copy()
         p["created_at"] = pd.to_datetime(p["created_at"])
-        t["txn_date"] = pd.to_datetime(t["txn_date"])
+        # The taskmap requires order_date; txn_date remains a legacy alias.
+        if "order_date" not in t:
+            if "txn_date" not in t:
+                raise ValueError("transactions require order_date (or legacy txn_date)")
+            t["order_date"] = t["txn_date"]
+        t["order_date"] = pd.to_datetime(t["order_date"])
+        if "txn_date" in t and not pd.to_datetime(t["txn_date"]).equals(t["order_date"]):
+            raise ValueError("order_date and txn_date disagree")
+        t["txn_date"] = t["order_date"]
+        if "txn_id" not in t:
+            t["txn_id"] = np.arange(len(t))
         if self.reference_date is None:
             self.reference_date = t["txn_date"].max() + pd.Timedelta(days=1)
         else:
@@ -53,7 +63,7 @@ class DataAnalyzer:
 
         group이 min_group 미만이면 그 group만 fallback(median/mean/zero)으로 되돌린다 — 작은 group의
         중앙값은 noise라는 판단(설계 기록 docs/03의 결정 4).
-        Returns: products 사본 (N, C) → 모양은 그대로, NaN 수만 0으로.
+        Returns: products 사본 (N, C) → 모양은 그대로, NaN 수만 0으로. 전체가 결측인 숫자 열은 추정할 근거가 없어 0으로 채우고 log에 기록한다.
         """
         if strategy not in {"median", "groupby_median"}:
             raise ValueError(f"미지원 strategy: {strategy}")
@@ -66,6 +76,10 @@ class DataAnalyzer:
         for col in cols:
             if not pd.api.types.is_numeric_dtype(df[col]):
                 df[col] = df[col].fillna("unknown")
+                continue
+            if not df[col].notna().any():
+                df[col] = df[col].fillna(0.0)
+                self.log[f"{col}_all_missing_fallback"] = "zero (no observed values)"
                 continue
             if strategy == "median":
                 df[col] = df[col].fillna(df[col].median())
@@ -137,7 +151,13 @@ class DataAnalyzer:
             df["img_saturation"] = (arr.max(axis=3) - arr.min(axis=3)).mean(axis=(1, 2))
         elif image_mean is not None:
             df["img_mean"] = np.asarray(image_mean)[: len(df)]
-        d = df["description"].fillna("").astype(str)
+        name_col = "name" if "name" in df else "product_name"
+        if name_col not in df:
+            raise ValueError("products require name or product_name")
+        names = df[name_col].fillna("").astype(str)
+        df["name_word_count"] = names.str.split().str.len().astype(int)
+        df["name_length"] = names.str.len().astype(int)
+        d = df["description"].fillna("").astype(str) if "description" in df else names
         df["word_count"] = d.str.split().str.len().fillna(0).astype(int)
         df["avg_word_len"] = d.apply(lambda s: np.mean([len(w) for w in s.split()]) if s.strip() else 0.0)
         df["has_promo"] = d.str.contains("|".join(["한정", "할인", "증정", "품절임박", "특가"]), regex=True).astype(int)

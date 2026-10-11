@@ -106,6 +106,7 @@ def make_transactions(products: pd.DataFrame, n_txn: int, rng: np.random.Generat
         "customer_id": cust,
         "quantity": qty,
         "amount": amount,
+        "order_date": dates,
         "txn_date": dates,
     }).sort_values("txn_date").reset_index(drop=True)
     return df, n_cust

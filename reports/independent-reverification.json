@@ -1,0 +1,22 @@
+{
+  "mission": "A1-1",
+  "source": {
+    "taskmap_commit": "e032f3468fab2ee1922e7219f8864a3f8c5c1150",
+    "evalmap_commit": "f1bafa175c06d0f1e7bc34ba3de99db3d5cf18f6",
+    "task_sha256": "f09980a7b9a9b2696ebf78acd6926e73753084548f857ed7bccd541ad6028544",
+    "evaluation_sha256": "0bca4b28da0476618102a25ca80705c7a61c8c88038376c699ff923b70f95db2"
+  },
+  "exact_question_count": 19,
+  "tests": {
+    "mission": "A1-1",
+    "command": "python -m pytest -q",
+    "exit_code": 0,
+    "summary": [
+      "16 passed in 3.03s"
+    ]
+  },
+  "verification_scope": "16 tests 통과. 원문 order_date 입력을 수용하고 생성 CSV에 해당 열을 추가했다. 상품명 name_word_count/name_length 피처를 추가했다. 전부 결측인 숫자 열은 근거 없는 중앙값 대신 0을 사용하고 로그에 명시한다. 분석 러너 및 노트북 7개 코드셀을 새로 실행했고 6종 그림을 노트북에 연결했다.",
+  "all_requirements_certified": false,
+  "remaining": [],
+  "verification_scope_complete": true
+}

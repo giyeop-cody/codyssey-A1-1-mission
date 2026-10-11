@@ -30,6 +30,8 @@ imgs = np.load("../data/images.npy"); truth = pd.read_csv("../data/_groundtruth_
 ana = DataAnalyzer(products=products, transactions=txns, images=imgs).load_data()
 print("products", products.shape, "| txns", txns.shape, "| images", imgs.shape)
 print("타입:", sorted({str(d) for d in products.dtypes}))
+products.info()
+print(products.describe().to_string())
 products.head(3)""")
 
 md("""## 1. 결측치 — 대치법을 고르면 정확도가 얼마나 바뀌나
@@ -61,7 +63,7 @@ t0 = time.perf_counter(); _ = np.array([i.mean() for i in arr]); t_loop = time.p
 t0 = time.perf_counter(); _ = arr.mean(axis=(1, 2, 3)); t_vec = time.perf_counter() - t0
 print(f"행 루프 {t_loop:.4f}s vs 벡터화 {t_vec:.4f}s → 벡터화 {t_loop/t_vec:.2f}배 (1 미만 = 벡터화가 더 느림)")
 print("결론: 이미지처럼 '작은 배열 여러 개'는 벡터화가 불리하다. 주장할 때 항상 배열 개수·크수를 적는다.")
-feats[["product_id", "category", "img_mean", "img_std", "word_count", "has_promo"]].head(3)""")
+feats[["product_id", "category", "img_mean", "img_std", "name_word_count", "name_length", "word_count", "has_promo"]].head(3)""")
 
 md("""## 4. 통계·상관""")
 code("""summ = ana.summarize(feats.assign(price=filled_grp["price"]))
@@ -69,6 +71,17 @@ summ.loc[["price", "rating", "stock", "word_count", "img_mean"]]
 corr = feats[["price", "rating", "stock", "word_count", "img_mean", "img_std"]].assign(price=filled_grp["price"].to_numpy()).corr()
 print("price vs img_mean r =", round(corr.loc["price", "img_mean"], 3), "| price vs rating r =", round(corr.loc["price", "rating"], 3))
 corr.style.background_gradient(cmap="coolwarm", axis=None)""")
+
+md("""## 4.5 전처리와 고객 분석 시각화
+아래 그림은 `python scripts/run_analysis.py`로 현재 데이터에서 생성한다.
+
+![가격 히스토그램](../figures/01_hist_price.png)
+![IQR 처리 전후](../figures/02_box_price_before_after.png)
+![고객 세그먼트](../figures/03_bar_segment.png)
+![상관 히트맵](../figures/04_heatmap_corr.png)
+![가격과 이미지 평균](../figures/05_scatter_price_vs_imgmean.png)
+![월별 거래](../figures/06_line_monthly_revenue.png)
+""")
 
 md("""## 5. RFM 세분화 — R 점수를 뒤집지 않으면 무슨 일이 생기나""")
 code("""rfm = ana.calculate_rfm(quantiles=5)
