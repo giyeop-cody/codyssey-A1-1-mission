@@ -1,0 +1,25 @@
+{
+  "verified_date": "2026-11-05",
+  "method": "Fresh empty source/output directories; prepare_hm_data.py --download-mirror --n-customers 1000 --seed 20261105",
+  "source_mirror_commit": "a3184bf24dbb78c67dd9863dd0aebb93e1b9b462",
+  "all_matched": true,
+  "files": {
+    "products.csv": {
+      "sha256": "56218cbf52c07966c893d577af5caff8e2305a4dbd7356c66f22e40fdf221a12",
+      "matched_independent_preparation": true
+    },
+    "transactions.csv": {
+      "sha256": "fe678cec926c63c43429e64d57f13cfd57733c52808907635621088af0a14e69",
+      "matched_independent_preparation": true
+    },
+    "images.npy": {
+      "sha256": "393c138a79fa4e821bb2a7115d21ed290c13360ef7da812b82f32102e320b072",
+      "matched_independent_preparation": true
+    },
+    "image_manifest.csv": {
+      "sha256": "39cb7962cb7f895aa5070bcb6f40390fdecd90ebd29823ae43077fecd437c99e",
+      "matched_independent_preparation": true
+    }
+  },
+  "note": "dataset_meta.json contains a creation timestamp and is compared by its sampling/result fields rather than byte hash. Raw source data and these derived data files are intentionally not tracked in Git."
+}

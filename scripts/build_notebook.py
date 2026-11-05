@@ -1,125 +1,181 @@
-"""노트북 생성 + 실행 — 제출물은 '코드가 도는 노트북'이어야 하므로 **실행된 결과**를 파일에 박는다.
-
-    python scripts/build_notebook.py      # → notebooks/analysis_report.ipynb (outputs 포함)
-"""
+"""실데이터 노트북을 만들고 NBClient로 실제 실행한 출력까지 저장한다."""
 from __future__ import annotations
 
+import json
 import pathlib
 
-import nbformat as nbf
+import nbformat
+import pandas as pd
 from nbclient import NotebookClient
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-nb = nbf.v4.new_notebook()
-nb.metadata.update({"kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"},
-                    "language_info": {"name": "python"}})
-C = nb.cells.append
-md = lambda t: C(nbf.v4.new_markdown_cell(t))
-code = lambda t: C(nbf.v4.new_code_cell(t))
+TARGET = ROOT / "notebooks" / "analysis_report.ipynb"
 
-md("""# A1-1 분석 리포트 — 쇼핑몰 단골 찾기
-목표: (1) 멀티모달 데이터 정제·탐색 (2) **설명 가능한** RFM 세분화.
-이 노트북은 `src/pipeline.py::DataAnalyzer`만 호출하고, 모든 표·숫자는 실행 결과로 채워진다.
-전체 재현: `python src/data_gen.py --seed 42 && jupyter nbconvert --execute --to notebook --inplace notebooks/analysis_report.ipynb`""")
-code("""import json, pathlib, sys
-import numpy as np, pandas as pd
-sys.path.insert(0, str(pathlib.Path.cwd().parent / "src"))
-from pipeline import DataAnalyzer
-products = pd.read_csv("../data/products.csv"); txns = pd.read_csv("../data/transactions.csv", parse_dates=["txn_date"])
-imgs = np.load("../data/images.npy"); truth = pd.read_csv("../data/_groundtruth_price.csv")
-ana = DataAnalyzer(products=products, transactions=txns, images=imgs).load_data()
-print("products", products.shape, "| txns", txns.shape, "| images", imgs.shape)
-print("타입:", sorted({str(d) for d in products.dtypes}))
-products.info()
-print(products.describe().to_string())
-products.head(3)""")
 
-md("""## 1. 결측치 — 대치법을 고르면 정확도가 얼마나 바뀌나
-정답지(`_groundtruth_price.csv`)와의 절대오차로 잰다. `DataAnalyzer`는 정답지를 읽지 않는다.""")
-code("""filled_all = ana.handle_missing_values(strategy="median")
-filled_grp = ana.handle_missing_values(strategy="groupby_median", min_group=30)
-na_ids = products.loc[products["price"].isna(), "product_id"]
-def mae(df):
-    j = df[["product_id", "price"]].merge(truth, on="product_id")
-    j = j[j["product_id"].isin(na_ids)]
-    return (j["price"] - j["price_true"]).abs().mean()
-print(f"결측 {len(na_ids)}행 | 전체 중앙값 MAE {mae(filled_all):,.1f} | 카테고리별 중앙값 MAE {mae(filled_grp):,.1f}")
-print("개선 배율", round(mae(filled_all) / mae(filled_grp), 2))
-assert filled_grp["price"].isna().sum() == 0 and mae(filled_grp) < mae(filled_all)""")
+def main() -> None:
+    dataset_meta = json.loads((ROOT / "data/dataset_meta.json").read_text(encoding="utf-8"))
+    is_mirror = dataset_meta["source_kind"] == "github_mirror_tail_window"
+    window_description = "15일 관찰창" if is_mirror else "선택된 Kaggle 원본 관찰 기간"
+    limit_description = ("15일 부분집합의 단기 RFM이며 장기 충성도는 검증하지 않는다. " if is_mirror else
+                         "전체 원본의 고객 표본 RFM이며 미래 이탈·장기 충성도는 별도 시간순 검증이 필요하다. ")
+    report_metrics = json.loads((ROOT / "reports/metrics.json").read_text(encoding="utf-8"))
+    summary = pd.read_csv(ROOT / "reports/summary.csv", index_col=0)
+    price = summary.loc["price"]
+    transaction_count = summary.loc["transaction_count"]
+    rfm_metrics = report_metrics["rfm"]
+    segment_characteristics = "\n".join(
+        f"- **{name}**: 고객 {row['n']:,}명, 매출지표 점유 {row['revenue_share_pct']:.1f}%, "
+        f"평균 Recency {row['mean_recency_days']:.2f}일, 평균 거래행 {row['mean_frequency_lines']:.2f}행"
+        for name, row in rfm_metrics["segments"].items()
+    )
+    notebook = nbformat.v4.new_notebook()
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3"},
+    }
+    notebook["cells"] = [
+        nbformat.v4.new_markdown_cell(
+            "# A1-1 — H&M 실데이터 EDA·RFM\n\n"
+            "공개 H&M 실제 상품·거래·이미지의 재현 가능한 부분집합을 사용한다. "
+            "가격은 원화가 아닌 정규화 값이며, 노출·클릭·세션·평점·재고는 만들지 않는다. "
+            "전체 그림과 60개 스펙은 `scripts/run_analysis.py`, `scripts/spec_curve.py`가 생성한다."
+        ),
+        nbformat.v4.new_code_cell(
+            "import json\n"
+            "import pathlib\n"
+            "import sys\n"
+            "import numpy as np\n"
+            "import pandas as pd\n"
+            "ROOT = pathlib.Path.cwd()\n"
+            "sys.path.insert(0, str(ROOT / 'src'))\n"
+            "from pipeline import DataAnalyzer\n"
+            "meta = json.loads((ROOT / 'data/dataset_meta.json').read_text(encoding='utf-8'))\n"
+            "products = pd.read_csv(ROOT / 'data/products.csv', dtype={'product_id': str})\n"
+            "txns = pd.read_csv(ROOT / 'data/transactions.csv', dtype={'product_id': str, 'customer_id': str})\n"
+            "images = np.load(ROOT / 'data/images.npy')\n"
+            "print({'synthetic': meta['synthetic'], 'products': len(products), 'transactions': len(txns), "
+            "'customers': txns.customer_id.nunique(), 'images': images.shape, "
+            "'period': [txns.order_date.min(), txns.order_date.max()]})\n"
+            "print('price unit: H&M normalized/scaled value (not KRW)')"
+        ),
+        nbformat.v4.new_markdown_cell(
+            "## 구조·분포·예시 탐색\n\n"
+            "`info()`로 dtype과 결측을, `describe()`로 분포를 먼저 확인한다. `head()`는 고객 ID나 거래행을 "
+            "노출하지 않고 상품의 비식별 컬럼 몇 개만 미리 본다. 원본·고객별 행은 저장소에 커밋하지 않는다."
+        ),
+        nbformat.v4.new_code_cell(
+            "from IPython.display import display\n"
+            "print('products.info()')\n"
+            "products.info()\n"
+            "display(products.describe(include='all').T)\n"
+            "display(products[['name', 'category', 'price', 'transaction_count']].head(3))\n"
+            "print('transactions.info() — customer rows are not displayed')\n"
+            "txns.info()\n"
+            "display(txns[['amount', 'sales_channel_id']].describe(include='all').T)"
+        ),
+        nbformat.v4.new_markdown_cell(
+            "### 구조 탐색 해석\n\n"
+            f"상품은 **{report_metrics['schema']['n_products']:,}행·{report_metrics['schema']['n_product_columns']}컬럼**, "
+            f"거래는 **{report_metrics['schema']['n_transactions']:,}행**, 고객은 **{report_metrics['schema']['n_customers']:,}명**이다. "
+            f"실제 설명 결측은 **{report_metrics['actual_missing']['description_before']}건**, 실제 가격 결측은 "
+            f"**{report_metrics['actual_missing']['price_before']}건**이다. 가격 평균 **{price['mean']:.6f}**가 "
+            f"중앙값 **{price['median']:.6f}**보다 크므로 오른쪽 꼬리를 고려하고, 상품별 거래 수 중앙값이 "
+            f"**{transaction_count['median']:.1f}행**이므로 거래가 적은 상품의 가격·상관을 과도하게 일반화하지 않는다. "
+            "시사점: 결측 처리와 `transaction_count` 확인을 후속 EDA의 품질 게이트로 둔다."
+        ),
+        nbformat.v4.new_markdown_cell(
+            "## 실제 결측·이미지 축 연산·기술통계\n\n"
+            "설명 결측만 `unknown`으로 처리한다. 가격 홀드아웃 대치 평가는 메인 데이터를 오염시키지 않도록 "
+            "별도 러너의 평가용 사본에서만 수행한다."
+        ),
+        nbformat.v4.new_code_cell(
+            "clean = DataAnalyzer(products, txns).handle_missing_values(columns=['description'])\n"
+            "ana = DataAnalyzer(clean, txns, images=images).load_data()\n"
+            "features = ana.add_multimodal_features()\n"
+            "summary = ana.summarize(features)\n"
+            "summary.loc[['price', 'transaction_count', 'word_count', 'img_mean', 'img_std', 'img_saturation']]"
+        ),
+        nbformat.v4.new_markdown_cell(
+            "### 통계·두 변수 쌍의 상관 해석\n\n"
+            f"가격 Q1/Q3는 **{price['25%']:.6f}/{price['75%']:.6f}**, 상품별 거래행 수 평균은 "
+            f"**{transaction_count['mean']:.3f}행**이다. 가격–이미지 평균 Pearson 상관은 "
+            f"**r={report_metrics['correlation']['price__img_mean']:.4f}**로 이 표본에서 약한 음의 관측 관계다. "
+            f"두 번째 쌍인 가격–거래행 수는 **r={report_metrics['correlation']['price__transaction_count']:.4f}**로 "
+            "0에 가까워 가격과 거래량의 선형 관계가 약하다. 시사점: 가격이나 밝기 하나로 판매량·고객 반응을 "
+            "예측하지 않고, 카테고리·거래 수와 후속 노출 데이터를 함께 확인한다. 두 상관 모두 인과효과가 아니다."
+        ),
+        nbformat.v4.new_markdown_cell(
+            "## RFM — 방향과 동률 검사\n\n"
+            "R만 역전한다. F는 원본 주문 ID가 없으므로 바구니 수가 아니라 고유 거래행 수다. "
+            "고객별 행은 출력하지 않고 세그먼트 집계만 표시한다."
+        ),
+        nbformat.v4.new_code_cell(
+            "rfm = ana.calculate_rfm(quantiles=5)\n"
+            "segments = rfm.groupby('segment', observed=True).agg(\n"
+            "    customers=('customer_id', 'size'),\n"
+            "    mean_recency_days=('recency', 'mean'),\n"
+            "    mean_frequency_lines=('frequency', 'mean'),\n"
+            "    normalized_monetary_sum=('monetary', 'sum'),\n"
+            ")\n"
+            "segments['monetary_share_pct'] = segments.normalized_monetary_sum / segments.normalized_monetary_sum.sum() * 100\n"
+            "vip_mean = rfm.loc[rfm.segment == 'VIP', 'recency'].mean()\n"
+            "assert vip_mean < rfm.recency.median()\n"
+            "print(f'VIP mean recency={vip_mean:.3f} < all median={rfm.recency.median():.3f}')\n"
+            "segments.round(3)"
+        ),
+        nbformat.v4.new_markdown_cell(
+            "### 그룹별 특징과 시사점\n\n"
+            f"{segment_characteristics}\n\n"
+            f"VIP 평균 Recency **{rfm_metrics['VIP_mean_recency']:.2f}일**은 비VIP "
+            f"**{rfm_metrics['non_VIP_mean_recency']:.2f}일**보다 짧고, R 미역전 실패 모드는 "
+            f"**{rfm_metrics['naive_VIP_mean_recency']:.2f}일**로 나빠진다. 시사점: VIP는 후속 캠페인 "
+            "후보로만 사용하되, 현재 관찰창만으로 장기 충성도나 캠페인 효과를 단정하지 않는다."
+        ),
+        nbformat.v4.new_markdown_cell(
+            "## 필수 6종 시각화\n\n"
+            "`scripts/run_analysis.py`가 실제 H&M 부분집합으로 저장한 히스토그램·박스플롯·막대·히트맵·산점도·라인차트를 "
+            f"노트북 안에서도 순서대로 표시한다. 가격은 정규화 값이며 마지막 선 그래프는 {window_description}의 일별 매출지표다."
+        ),
+        nbformat.v4.new_code_cell(
+            "from IPython.display import Image as DisplayImage, display\n"
+            "figure_names = [\n"
+            "    '01_hist_price.png', '02_box_price_before_after.png', '03_bar_segment.png',\n"
+            "    '04_heatmap_corr.png', '05_scatter_price_vs_imgmean.png', '06_line_daily_revenue.png',\n"
+            "]\n"
+            "for name in figure_names:\n"
+            "    print(name)\n"
+            "    display(DisplayImage(filename=str(ROOT / 'figures' / name)))"
+        ),
+        nbformat.v4.new_markdown_cell(
+            "## 실행 산출물과 해석 경계\n\n"
+            "- `reports/metrics.json`: 데이터 출처·홀드아웃 대치·IQR·상관·RFM 측정값\n"
+            "- `reports/spec_curve.csv`: 60개 분석 선택 조합\n"
+            "- `figures/01..07`: 실제 데이터에서 만든 그림\n\n"
+            f"{limit_description}캠페인 인과효과는 검증하지 않는다. "
+            "이미지–가격 상관도 CTR·구매 전환 효과가 아니다."
+        ),
+        nbformat.v4.new_code_cell(
+            "metrics = json.loads((ROOT / 'reports/metrics.json').read_text(encoding='utf-8'))\n"
+            "spec = pd.read_csv(ROOT / 'reports/spec_curve.csv')\n"
+            "result = pd.DataFrame([\n"
+            "    {'metric': 'price holdout global MAE', 'value': metrics['imputation']['global_median_MAE']},\n"
+            "    {'metric': 'price holdout group MAE', 'value': metrics['imputation']['groupby_median_MAE']},\n"
+            "    {'metric': 'IQR flagged share', 'value': metrics['outliers']['price_outlier_pct'] / 100},\n"
+            "    {'metric': 'raw Pearson price-image r', 'value': metrics['correlation']['price__img_mean']},\n"
+            "    {'metric': 'raw Pearson price-transaction_count r', 'value': metrics['correlation']['price__transaction_count']},\n"
+            "    {'metric': '60-spec minimum r', 'value': spec.r.min()},\n"
+            "    {'metric': '60-spec maximum r', 'value': spec.r.max()},\n"
+            "])\n"
+            "result"
+        ),
+    ]
+    TARGET.parent.mkdir(parents=True, exist_ok=True)
+    nbformat.write(notebook, TARGET)
+    client = NotebookClient(notebook, timeout=180, kernel_name="python3", resources={"metadata": {"path": str(ROOT)}})
+    client.execute()
+    nbformat.write(notebook, TARGET)
+    print(f"executed notebook written: {TARGET}")
 
-md("""## 2. 이상치 — IQR 규칙이 태깅하는 비율
-`경계 = [Q1 − k·IQR, Q3 + k·IQR]`. 분포가 길수록 많이 잡힌다(k=1.5 고정).""")
-code("""flagged = ana.detect_outliers("price", k=1.5, policy="flag")
-print(f"태깅 {int(flagged['price_is_outlier'].sum())}행 / {len(flagged)}행 = {flagged['price_is_outlier'].mean()*100:.2f}%")
-print(flagged.loc[flagged["price_is_outlier"], ["product_id", "category", "price"]].head(3))
-print("참고: drop 이면 20.67%의 상품을 버린다 → 기본값은 flag")""")
 
-md("""## 3. 멀티모달 피처 — 그리고 '벡터화 몇 배' 주장의 진짜 의미""")
-code("""feats = ana.add_multimodal_features()
-print({k: ana.log[k] for k in ana.log if "img_" in k})
-arr = imgs.astype(np.float64) / 255.0
-import time
-t0 = time.perf_counter(); _ = np.array([i.mean() for i in arr]); t_loop = time.perf_counter() - t0
-t0 = time.perf_counter(); _ = arr.mean(axis=(1, 2, 3)); t_vec = time.perf_counter() - t0
-print(f"행 루프 {t_loop:.4f}s vs 벡터화 {t_vec:.4f}s → 벡터화 {t_loop/t_vec:.2f}배 (1 미만 = 벡터화가 더 느림)")
-print("결론: 이미지처럼 '작은 배열 여러 개'는 벡터화가 불리하다. 주장할 때 항상 배열 개수·크수를 적는다.")
-feats[["product_id", "category", "img_mean", "img_std", "name_word_count", "name_length", "word_count", "has_promo"]].head(3)""")
-
-md("""## 4. 통계·상관""")
-code("""summ = ana.summarize(feats.assign(price=filled_grp["price"]))
-summ.loc[["price", "rating", "stock", "word_count", "img_mean"]]
-corr = feats[["price", "rating", "stock", "word_count", "img_mean", "img_std"]].assign(price=filled_grp["price"].to_numpy()).corr()
-print("price vs img_mean r =", round(corr.loc["price", "img_mean"], 3), "| price vs rating r =", round(corr.loc["price", "rating"], 3))
-corr.style.background_gradient(cmap="coolwarm", axis=None)""")
-
-md("""## 4.5 전처리와 고객 분석 시각화
-아래 그림은 `python scripts/run_analysis.py`로 현재 데이터에서 생성한다.
-
-![가격 히스토그램](../figures/01_hist_price.png)
-![IQR 처리 전후](../figures/02_box_price_before_after.png)
-![고객 세그먼트](../figures/03_bar_segment.png)
-![상관 히트맵](../figures/04_heatmap_corr.png)
-![가격과 이미지 평균](../figures/05_scatter_price_vs_imgmean.png)
-![월별 거래](../figures/06_line_monthly_revenue.png)
-""")
-
-md("""## 5. RFM 세분화 — R 점수를 뒤집지 않으면 무슨 일이 생기나""")
-code("""rfm = ana.calculate_rfm(quantiles=5)
-tab = rfm.groupby("segment", observed=True).agg(고객수=("customer_id", "size"), 매출=("monetary", "sum"), 평균Recency=("recency", "mean"))
-tab["매출점유율_%"] = (tab["매출"] / rfm["monetary"].sum() * 100).round(1)
-print(tab.round(1))
-vip = rfm[rfm["segment"] == "VIP"]
-print(f"VIP 평균 Recency {vip['recency'].mean():.1f}일 (전체 중앙값 {rfm['recency'].median():.1f}일)")
-assert vip["recency"].mean() < rfm["recency"].median(), "R 점수 역전: 뒤집지 않은 것 아닌지 확인"
-naive_score = pd.qcut(rfm["recency"], 5, labels=False, duplicates="drop") + 1     # 실수 재현: 안 뒤집기
-bad = rfm[naive_score == 5]
-print(f"[실수 재현] 안 뒤집으면 VIP 후보 {len(bad)}명의 평균 Recency {bad['recency'].mean():.1f}일, 매출 점유 {bad['monetary'].sum()/rfm['monetary'].sum()*100:.1f}%")""")
-
-md("""## 6. 인사이트 (근거 → 실행 → 검증)
-이미지 평균·표준편차와 상품명 피처는 원문 필수 요구다. 이미지–가격 상관은 보조 EDA이며,
-사업적 확장 가설은 과노출로 상품 디테일을 잃지 않는 밝기·대비 개선이 클릭률과 구매 전환에 미치는 영향이다.
-현재 합성 데이터에는 노출·클릭·세션 기록이 없어 효과를 검증하지 않았다.
-라쿠텐 연구의 CTR 개선은 밝기·대비·선명도 등을 함께 조정한 결과이며 밝기 단독 효과나 구매 전환의 증거가 아니다.
-[연구 원문](https://bjornstenger.github.io/papers/chae_icip2018.pdf), [실험 계획](../docs/image-engagement-plan.md).""")
-code("""ins = ana.report_insights(rfm)
-for k, v in ins.items():
-    print("●", k)
-    for kk in ("근거", "실행", "검증"):
-        print("   -", kk, ":", v.get(kk))""")
-
-md("""## 7. 이 노트북의 검증 장치
-- 위 `assert` 2개(결측 대치 개선, R 점수 역전)가 깨지면 리포트가 멈춘다 = 주장과 코드가 분리되지 않는다.
-- `python scripts/check_requirements.py` 가 요구 8항목·6그림·인사이트 3요소를 채점한다.
-- 이 파일은 `scripts/build_notebook.py`가 만들어 실행까지 포함한다(빈 출력 셀 제출 방지).""")
-
-out = ROOT / "notebooks" / "analysis_report.ipynb"
-out.parent.mkdir(exist_ok=True, parents=True)   # 커널 작업디렉터리가 되므로 먼저 만든다
-
-client = NotebookClient(nb, timeout=600, kernel_name="python3",
-                        resources={"metadata": {"path": str(ROOT / "notebooks")}})
-client.execute()
-out = ROOT / "notebooks" / "analysis_report.ipynb"
-out.parent.mkdir(exist_ok=True)
-nbf.write(nb, out)
-print(f" wrote {out} · cells={len(nb.cells)} · 실행된 코드셀="
-      f"{sum(1 for c in nb.cells if c.cell_type=='code' and c.get('outputs'))}")
+if __name__ == "__main__":
+    main()

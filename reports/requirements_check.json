@@ -1,0 +1,372 @@
+{
+  "all_pass": true,
+  "passed": 73,
+  "total": 73,
+  "checks": [
+    {
+      "name": "실데이터 입력 products 존재",
+      "passed": true,
+      "detail": "data/products.csv"
+    },
+    {
+      "name": "실데이터 입력 transactions 존재",
+      "passed": true,
+      "detail": "data/transactions.csv"
+    },
+    {
+      "name": "실데이터 입력 images 존재",
+      "passed": true,
+      "detail": "data/images.npy"
+    },
+    {
+      "name": "실데이터 입력 metadata 존재",
+      "passed": true,
+      "detail": "data/dataset_meta.json"
+    },
+    {
+      "name": "상품 1000개 이상",
+      "passed": true,
+      "detail": "2,295"
+    },
+    {
+      "name": "거래 1000건 이상",
+      "passed": true,
+      "detail": "3,894"
+    },
+    {
+      "name": "상품 8컬럼 이상",
+      "passed": true,
+      "detail": "16"
+    },
+    {
+      "name": "CSV dtype 3종 이상",
+      "passed": true,
+      "detail": "['float64', 'int64', 'str']"
+    },
+    {
+      "name": "거래 필수 스키마",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "상품 ID 고유",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "거래행 ID 고유",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "거래–상품 article join 100%",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "실제 이미지 shape·dtype",
+      "passed": true,
+      "detail": "(2295, 32, 32, 3)/uint8"
+    },
+    {
+      "name": "이미지 manifest가 상품과 1:1",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "원본 이미지 SHA-256 기록",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "합성 데이터 아님 명시",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "실제 source kind 기록",
+      "passed": true,
+      "detail": "github_mirror_tail_window"
+    },
+    {
+      "name": "미러 커밋 또는 원본 다운로드 경로 구분",
+      "passed": true,
+      "detail": "a3184bf24dbb78c67dd9863dd0aebb93e1b9b462"
+    },
+    {
+      "name": "미러 행 수 또는 원본 전체 행 수 확인",
+      "passed": true,
+      "detail": "531967"
+    },
+    {
+      "name": "원본 행 위치 확인",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "articles SHA-256 기록·검증",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "transactions SHA-256 기록·검증",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "고객 수가 실제 표본과 일치",
+      "passed": true,
+      "detail": "998"
+    },
+    {
+      "name": "원본 관찰 기간 명시",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "가격 단위를 원화로 오인하지 않음",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "합성 생성기 제거",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "이미지 필터 수 계산 일치",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DataAnalyzer.load_data 구현",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DataAnalyzer.handle_missing_values 구현",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DataAnalyzer.detect_outliers 구현",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DataAnalyzer.calculate_rfm 구현",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "IQR k·policy 인자화",
+      "passed": true,
+      "detail": "(self, column: 'str', k: 'float' = 1.5, policy: 'str' = 'flag', groupby: 'str | None' = None) -> 'pd.DataFrame'"
+    },
+    {
+      "name": "결측 전략·fallback 인자화",
+      "passed": true,
+      "detail": "(self, strategy: 'str' = 'groupby_median', min_group: 'int' = 30, fallback: 'str' = 'median', columns: 'list[str] | None' = None) -> 'pd.DataFrame'"
+    },
+    {
+      "name": "실제 설명 결측 처리 완료",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "실제 가격 홀드아웃 20건 이상",
+      "passed": true,
+      "detail": "253"
+    },
+    {
+      "name": "두 대치 MAE 유한값",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "IQR 플래그 비율 재계산 일치",
+      "passed": true,
+      "detail": "4.92%"
+    },
+    {
+      "name": "실제 상관 유효 표본·유한값",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "상관 2쌍 이상 계산",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "스펙 커브 60개·유한값",
+      "passed": true,
+      "detail": "60"
+    },
+    {
+      "name": "RFM 4개 세그먼트",
+      "passed": true,
+      "detail": "['대체고객', '성장고객', '우수고객', 'VIP']"
+    },
+    {
+      "name": "VIP Recency 방향 게이트",
+      "passed": true,
+      "detail": "VIP=4.624"
+    },
+    {
+      "name": "R 역순 실패 모드 검출",
+      "passed": true,
+      "detail": "naive=10.089"
+    },
+    {
+      "name": "벡터화 3경로 측정",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "그림 01_hist_price.png 존재·10KB",
+      "passed": true,
+      "detail": "21027"
+    },
+    {
+      "name": "그림 02_box_price_before_after.png 존재·10KB",
+      "passed": true,
+      "detail": "30505"
+    },
+    {
+      "name": "그림 03_bar_segment.png 존재·10KB",
+      "passed": true,
+      "detail": "59923"
+    },
+    {
+      "name": "그림 04_heatmap_corr.png 존재·10KB",
+      "passed": true,
+      "detail": "70395"
+    },
+    {
+      "name": "그림 05_scatter_price_vs_imgmean.png 존재·10KB",
+      "passed": true,
+      "detail": "74590"
+    },
+    {
+      "name": "그림 06_line_daily_revenue.png 존재·10KB",
+      "passed": true,
+      "detail": "59414"
+    },
+    {
+      "name": "그림 07_spec_curve.png 존재·10KB",
+      "passed": true,
+      "detail": "85535"
+    },
+    {
+      "name": "기술통계에 사분위수 포함",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "리포트 가격 단위·비인과 한계",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "기술통계 수치 해석·시사점",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "상관 2쌍 각각 해석",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "README 사업 제안 '근거' 3회",
+      "passed": true,
+      "detail": "4"
+    },
+    {
+      "name": "README 사업 제안 '실행' 3회",
+      "passed": true,
+      "detail": "33"
+    },
+    {
+      "name": "README 사업 제안 '검증' 3회",
+      "passed": true,
+      "detail": "9"
+    },
+    {
+      "name": "README 사업 제안 3개 이상",
+      "passed": true,
+      "detail": "3"
+    },
+    {
+      "name": "사업 제안 1 대상·기대효과·반증",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "사업 제안 2 대상·기대효과·반증",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "사업 제안 3 대상·기대효과·반증",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "고객별 RFM을 reports에서 제외",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "노트북 실제 실행 출력 포함",
+      "passed": true,
+      "detail": "22 outputs"
+    },
+    {
+      "name": "노트북 연속 실행·6종 PNG",
+      "passed": true,
+      "detail": "[1, 2, 3, 4, 5, 6]/6 PNG"
+    },
+    {
+      "name": "노트북 탐색·통계·2쌍 해석",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "노트북 RFM 4그룹 특징 해석",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Kaggle 브라우저 OAuth 로그인 강제",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Kaggle 토큰 환경변수 미사용",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "OAuth 지원 Kaggle CLI 버전 고정",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Kaggle 2.2.5 competition 위치 인자",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "run_all이 pytest까지 실행",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "원본·고객 단위 data/ Git 미추적",
+      "passed": true,
+      "detail": "[]"
+    }
+  ]
+}

@@ -1,18 +1,33 @@
 {
   "n_specs": 60,
-  "r_최소": 0.011,
-  "r_최대": 0.6672,
-  "r_중위": 0.33940000000000003,
-  "r_1사분위": 0.301575,
-  "r_3사분위": 0.49915,
-  "부호일치율": 1.0,
-  "p_0.05_미만_비율": 0.9833333333333333,
-  "영존재비율": 0.016666666666666666,
-  "단일인용문제의_실측": "리포트에 적었던 r=0.119 는 60 스펙 중 하나의 값이었다",
-  "선택규칙": "Rousselet·Pernet(2012): 방법은 결과가 아니라 데이터 진단으로 고른다. 이 데이터는 가격에 외점 248행(20.67%) → 강건 추정(pb20·skipped)이 1순위",
-  "강건추정치": {
-    "pb20_중위": 0.4138,
-    "skipped_중위": 0.38925,
-    "skipped_생존n_최소": 642
+  "r_min": -0.28046570278608185,
+  "r_max": -0.06788423533576246,
+  "r_median": -0.1374477837913092,
+  "r_q1": -0.20246150404002755,
+  "r_q3": -0.10491585616516469,
+  "sign_agreement": 1.0,
+  "p_below_0_05_share": 1.0,
+  "near_zero_share": 0.21666666666666667,
+  "robust_estimates": {
+    "pb20_median": -0.14549716221373984,
+    "skipped_median": -0.17618187071082586,
+    "skipped_min_n": 1702
+  },
+  "method_note": "Skipped uses a winsorized-covariance approximation, not MCD. Fisher p-values are approximate and descriptive across non-independent specifications.",
+  "minimum_spec": {
+    "coefficient": "skipped",
+    "outlier": "IQRdrop",
+    "scale": "raw",
+    "control": "none",
+    "n": 1879,
+    "r": -0.28046570278608185
+  },
+  "maximum_spec": {
+    "coefficient": "kendall",
+    "outlier": "IQRdrop",
+    "scale": "log",
+    "control": "category",
+    "n": 2182,
+    "r": -0.06788423533576246
   }
 }

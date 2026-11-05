@@ -1,0 +1,5 @@
+-r requirements.txt
+# Browser OAuth (`kaggle auth login`) support; 2.2.5 CLI help was verified.
+kaggle>=2.2.5,<3
+# Kaggle 2.2.5 imports six at startup without declaring it as a dependency.
+six>=1.16,<2

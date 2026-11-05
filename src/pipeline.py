@@ -1,9 +1,7 @@
-"""A1-1 요구 2번: OOP 데이터 분석 모듈 `DataAnalyzer`.
+"""A1-1 OOP 분석 파이프라인 — 실제 H&M 상품·거래·이미지를 지원한다.
 
-규칙(설계 기록 docs/07에서):
-- 인스턴스 밖에서 DataFrame을 변형하지 않는다. 모든 메서드는 **사본**을 반환한다(노트북 재실행 가능해야 함).
-- 임계값·전략은 전부 인자. 본문에 마법 숫자를 남기지 않는다.
-- docstring에 수식 1줄 + shape 변화 1줄.
+모든 공개 메서드는 입력 DataFrame을 바꾸지 않고 사본을 반환한다. 합성 전용
+created_at/rating/stock을 요구하지 않으며, 없는 사실은 만들지 않는다.
 """
 from __future__ import annotations
 
@@ -13,40 +11,59 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
+SEGMENT_LABELS = ["대체고객", "성장고객", "우수고객", "VIP"]
+
+
+def tied_quantile_scores(values: pd.Series, quantiles: int, *, reverse: bool = False) -> pd.Series:
+    """동률을 같은 점수로 유지하는 1..q 분위 점수.
+
+    H&M의 짧은 관찰 기간에서는 구매 빈도의 정수 동률이 많아 qcut(..., duplicates='drop')이
+    분위 수를 임의로 줄일 수 있다. 평균 순위의 백분율을 사용해 동률을 억지로 나누지
+    않으면서도 방향과 범위를 고정한다. reverse=True이면 작은 원값이 높은 점수다.
+    """
+    if quantiles < 2:
+        raise ValueError("quantiles must be >= 2")
+    if values.isna().any() or len(values) == 0:
+        raise ValueError("scores require non-empty, non-missing values")
+    percentile = values.rank(method="average", ascending=True) / len(values)
+    scores = np.ceil(percentile * quantiles).clip(1, quantiles).astype(int)
+    if reverse:
+        scores = quantiles + 1 - scores
+    return pd.Series(scores.to_numpy(), index=values.index, dtype=int)
+
 
 @dataclass
 class DataAnalyzer:
-    """합성 쇼핑몰 데이터(products/transactions/images)의 전처리·피처·RFM 파이프라인.
+    """상품(products), 구매행(transactions), 실제 이미지 배열의 EDA·RFM 분석기."""
 
-    Parameters
-    ----------
-    products, transactions : pd.DataFrame
-        원본 테이블. 이 생성자는 복사하지 **않고** 참조만 저장한다(읽기 전용 대우).
-    reference_date : str | pd.Timestamp | None
-        RFM의 기준 시점. None이면 거래 최대일 + 1일.
-    """
     products: pd.DataFrame
     transactions: pd.DataFrame
     reference_date: pd.Timestamp | None = None
     images: np.ndarray | None = None
     log: dict = field(default_factory=dict)
 
-    # ---------------------------------------------------------------- stage 1
     def load_data(self) -> "DataAnalyzer":
-        """타입·스키마를 점검하고 필요 타입을 캐스팅한다.  (self 를 그대로 반환 → 체이닝)"""
+        """실제 스키마를 검사하고 날짜를 캐스팅한다. shape은 유지된다."""
         p, t = self.products.copy(), self.transactions.copy()
-        p["created_at"] = pd.to_datetime(p["created_at"])
-        # The taskmap requires order_date; txn_date remains a legacy alias.
+        if "created_at" in p:  # H&M에는 없는 선택 컬럼이다. 만들지 않는다.
+            p["created_at"] = pd.to_datetime(p["created_at"])
         if "order_date" not in t:
             if "txn_date" not in t:
                 raise ValueError("transactions require order_date (or legacy txn_date)")
             t["order_date"] = t["txn_date"]
-        t["order_date"] = pd.to_datetime(t["order_date"])
+        t["order_date"] = pd.to_datetime(t["order_date"], errors="raise")
         if "txn_date" in t and not pd.to_datetime(t["txn_date"]).equals(t["order_date"]):
             raise ValueError("order_date and txn_date disagree")
         t["txn_date"] = t["order_date"]
         if "txn_id" not in t:
             t["txn_id"] = np.arange(len(t))
+        required = {"customer_id", "amount", "txn_id"}
+        if not required <= set(t.columns):
+            raise ValueError(f"transactions missing columns: {required - set(t.columns)}")
+        if t["txn_id"].duplicated().any():
+            raise ValueError("txn_id must identify each source transaction line uniquely")
+        if t["amount"].isna().any() or not pd.api.types.is_numeric_dtype(t["amount"]):
+            raise ValueError("amount must be non-missing numeric data")
         if self.reference_date is None:
             self.reference_date = t["txn_date"].max() + pd.Timedelta(days=1)
         else:
@@ -56,14 +73,13 @@ class DataAnalyzer:
         self.log["n_missing_cols"] = int(p.isna().any().sum())
         return self
 
-    # ---------------------------------------------------------------- stage 2
     def handle_missing_values(self, strategy: str = "groupby_median", min_group: int = 30,
                               fallback: str = "median", columns: list[str] | None = None) -> pd.DataFrame:
-        """결측 처리.  `median`: 열 전체 중앙값 / `groupby_median`: (category, 열)별 중앙값.
+        """결측을 처리한다. 수치는 중앙값, 문자/범주는 'unknown'; shape은 유지된다.
 
-        group이 min_group 미만이면 그 group만 fallback(median/mean/zero)으로 되돌린다 — 작은 group의
-        중앙값은 noise라는 판단(설계 기록 docs/03의 결정 4).
-        Returns: products 사본 (N, C) → 모양은 그대로, NaN 수만 0으로. 전체가 결측인 숫자 열은 추정할 근거가 없어 0으로 채우고 log에 기록한다.
+        groupby_median은 category별 중앙값을 쓰고 관측 수가 min_group보다 작은
+        그룹은 전체 fallback으로 되돌린다. 모든 실제 가격이 관측된 메인 데이터와
+        달리, 가격 홀드아웃 평가는 run_analysis가 만든 평가용 사본에서만 수행한다.
         """
         if strategy not in {"median", "groupby_median"}:
             raise ValueError(f"미지원 strategy: {strategy}")
@@ -73,7 +89,11 @@ class DataAnalyzer:
             raise ValueError("min_group must be >= 1")
         df = self.products.copy()
         cols = columns or [c for c in df.columns if df[c].isna().any()]
+        text_columns = {"description", "name", "product_name", "category", "image_path"}
         for col in cols:
+            if col in text_columns:
+                df[col] = df[col].astype("object").fillna("unknown")
+                continue
             if not pd.api.types.is_numeric_dtype(df[col]):
                 df[col] = df[col].fillna("unknown")
                 continue
@@ -83,144 +103,145 @@ class DataAnalyzer:
                 continue
             if strategy == "median":
                 df[col] = df[col].fillna(df[col].median())
-            elif strategy == "groupby_median":
-                g = df.groupby("category")[col]
-                sizes = g.size()
-                med = g.transform("median")
-                small = sizes[sizes < min_group].index
-                global_value = {"median": df[col].median, "mean": df[col].mean,
-                                "zero": lambda: 0.0}[fallback]()
-                med[df["category"].isin(small)] = global_value
-                df[col] = df[col].fillna(med).fillna(global_value)
-                self.log[f"{col}_small_groups"] = sorted(map(str, small))
-            else:
-                raise ValueError(f"미지원 strategy: {strategy}")
+                continue
+            if "category" not in df:
+                raise ValueError("groupby_median requires category")
+            grouped = df.groupby("category")[col]
+            sizes = grouped.size()
+            med = grouped.transform("median")
+            small = sizes[sizes < min_group].index
+            global_value = {
+                "median": df[col].median, "mean": df[col].mean, "zero": lambda: 0.0,
+            }[fallback]()
+            med[df["category"].isin(small)] = global_value
+            df[col] = df[col].fillna(med).fillna(global_value)
+            self.log[f"{col}_small_groups"] = sorted(map(str, small))
         return df
 
-    # ---------------------------------------------------------------- stage 3
     def detect_outliers(self, column: str, k: float = 1.5, policy: str = "flag",
                         groupby: str | None = None) -> pd.DataFrame:
-        """IQR 규칙: 경계 = [Q1 − k·IQR, Q3 + k·IQR], IQR = Q3 − Q1.
-
-        policy: flag(플래그만) | clip(경계로 자름) | drop(제거). groupby를 주면 카테고리별로 계산한다.
-        Returns: `{column}` + `{column}_is_outlier` 추가 (N, C) → (N, C+1) (drop이면 행 수 감소)
-        """
+        """IQR 경계 [Q1-k·IQR, Q3+k·IQR]로 flag/clip/drop한다."""
+        if k <= 0:
+            raise ValueError("k must be positive")
         df = self.products.copy()
         if groupby:
-            grp = df.groupby(groupby)[column]
-            lo, hi = grp.transform(lambda s: s.quantile(0.25) - k * (s.quantile(0.75) - s.quantile(0.25))), \
-                      grp.transform(lambda s: s.quantile(0.75) + k * (s.quantile(0.75) - s.quantile(0.25)))
+            grouped = df.groupby(groupby)[column]
+            lo = grouped.transform(lambda s: s.quantile(0.25) - k * (s.quantile(0.75) - s.quantile(0.25)))
+            hi = grouped.transform(lambda s: s.quantile(0.75) + k * (s.quantile(0.75) - s.quantile(0.25)))
         else:
             q1, q3 = df[column].quantile([0.25, 0.75])
             lo, hi = q1 - k * (q3 - q1), q3 + k * (q3 - q1)
         mask = (df[column] < lo) | (df[column] > hi)
         df[f"{column}_is_outlier"] = mask
-        if policy == "flag":
-            pass
-        elif policy == "clip":
+        if policy == "clip":
             df[column] = df[column].clip(lower=lo, upper=hi)
         elif policy == "drop":
             df = df[~mask].copy()
-        else:
+        elif policy != "flag":
             raise ValueError(f"미지원 policy: {policy}")
         self.log[f"{column}_outlier_pct"] = round(float(mask.mean() * 100), 2)
         return df
 
-    # ---------------------------------------------------------------- stage 4
     def add_multimodal_features(self, image_mean: np.ndarray | None = None) -> pd.DataFrame:
-        """이미지·텍스트 피처.  (N,32,32,3) uint8 → (N,) 스칼라 3종 / 문자열 → 수치 3종.
-
-        axis=(1,2,3)으로 줄이는 이유: 1장 전체의 통계량이 필요하지 픽셀별 값이 필요하지 않기 때문이다.
-        for-loop와 벡터화 두 경로를 모두 재고해 시간을 남긴다(요구 3번의 '성능 측정' 대응).
-        """
+        """(N,H,W,3) 실제 RGB에서 평균·표준편차·채도 범위를, 텍스트에서 길이를 만든다."""
         df = self.products.copy()
         if self.images is not None:
-            arr = self.images.astype(np.float64) / 255.0
-            t0 = time.perf_counter()
-            mean_vec, std_vec = arr.mean(axis=(1, 2, 3)), arr.std(axis=(1, 2, 3))
-            t_vec = time.perf_counter() - t0
-            t0 = time.perf_counter()
-            mean_loop = np.array([img.mean() for img in arr])
-            t_loop = time.perf_counter() - t0
-            assert np.allclose(mean_vec, mean_loop, atol=1e-12), "벡터화·루프 결과 불일치"
-            self.log["img_time_vectorized_s"] = round(t_vec, 4)
-            self.log["img_time_loop_s"] = round(t_loop, 4)
-            self.log["img_speedup_loop_vs_vec"] = round(t_loop / max(t_vec, 1e-9), 2)
+            arr = np.asarray(self.images)
+            if len(arr) != len(df) or arr.ndim != 4 or arr.shape[-1] != 3:
+                raise ValueError("images must have shape (n_products,H,W,3) and preserve product order")
+            scaled = arr.astype(np.float64) / 255.0
+            started = time.perf_counter()
+            mean_vec = scaled.mean(axis=(1, 2, 3))
+            std_vec = scaled.std(axis=(1, 2, 3))
+            vector_seconds = time.perf_counter() - started
+            started = time.perf_counter()
+            mean_loop = np.array([image.mean() for image in scaled])
+            loop_seconds = time.perf_counter() - started
+            if not np.allclose(mean_vec, mean_loop, atol=1e-12):
+                raise AssertionError("벡터화·루프 결과 불일치")
+            self.log["img_time_vectorized_s"] = round(vector_seconds, 6)
+            self.log["img_time_loop_s"] = round(loop_seconds, 6)
+            self.log["img_speedup_loop_vs_vec"] = round(loop_seconds / max(vector_seconds, 1e-12), 2)
             df["img_mean"] = mean_vec
             df["img_std"] = std_vec
-            df["img_saturation"] = (arr.max(axis=3) - arr.min(axis=3)).mean(axis=(1, 2))
+            df["img_saturation"] = (scaled.max(axis=3) - scaled.min(axis=3)).mean(axis=(1, 2))
         elif image_mean is not None:
-            df["img_mean"] = np.asarray(image_mean)[: len(df)]
+            values = np.asarray(image_mean)
+            if len(values) != len(df):
+                raise ValueError("image_mean must match n_products")
+            df["img_mean"] = values
         name_col = "name" if "name" in df else "product_name"
         if name_col not in df:
             raise ValueError("products require name or product_name")
         names = df[name_col].fillna("").astype(str)
         df["name_word_count"] = names.str.split().str.len().astype(int)
         df["name_length"] = names.str.len().astype(int)
-        d = df["description"].fillna("").astype(str) if "description" in df else names
-        df["word_count"] = d.str.split().str.len().fillna(0).astype(int)
-        df["avg_word_len"] = d.apply(lambda s: np.mean([len(w) for w in s.split()]) if s.strip() else 0.0)
-        df["has_promo"] = d.str.contains("|".join(["한정", "할인", "증정", "품절임박", "특가"]), regex=True).astype(int)
+        descriptions = df["description"].fillna("").astype(str) if "description" in df else names
+        df["word_count"] = descriptions.str.split().str.len().fillna(0).astype(int)
+        df["avg_word_len"] = descriptions.apply(
+            lambda text: np.mean([len(word) for word in text.split()]) if text.strip() else 0.0
+        )
         return df
 
-    # ---------------------------------------------------------------- stage 5
     def summarize(self, df: pd.DataFrame | None = None) -> pd.DataFrame:
-        """수치 컬럼 요약 + 가격-행동 상관.  (N,C) → (수치컬럼, 통계량) 표"""
-        df = self.products if df is None else df
-        num = df.select_dtypes(include=[np.number])
-        out = num.agg(["count", "mean", "std", "min", "median", "max"]).T
-        out["25%"] = num.quantile(0.25)
-        out["75%"] = num.quantile(0.75)
+        """숫자 컬럼의 count/mean/std/min/quartiles/median/max를 반환한다."""
+        frame = self.products if df is None else df
+        numeric = frame.select_dtypes(include=[np.number])
+        out = numeric.agg(["count", "mean", "std", "min", "median", "max"]).T
+        out["25%"] = numeric.quantile(0.25)
+        out["75%"] = numeric.quantile(0.75)
         return out[["count", "mean", "std", "min", "25%", "median", "75%", "max"]]
 
     def correlation(self, df: pd.DataFrame | None = None, other: pd.DataFrame | None = None) -> pd.DataFrame:
-        df = self.products if df is None else df
-        a = df.select_dtypes(include=[np.number])
+        frame = self.products if df is None else df
+        left = frame.select_dtypes(include=[np.number])
         if other is not None:
-            a = a.join(other.select_dtypes(include=[np.number]), rsuffix="_txn")
-        return a.corr()
+            left = left.join(other.select_dtypes(include=[np.number]), rsuffix="_txn")
+        return left.corr()
 
-    # ---------------------------------------------------------------- stage 6
     def calculate_rfm(self, quantiles: int = 5, drop_duplicates: bool = True) -> pd.DataFrame:
-        """고객별 RFM.  Recency = (reference_date − 마지막 구매일).days → **작을수록 좋음**이라 점수를 뒤집는다.
+        """고객별 RFM과 동률 안전 점수를 계산한다. (고객 수,8)을 반환한다.
 
-        점수 = 6 − qcut(R, q) (R만) / qcut(x, q)+1 (F, M). ties 때문에 `duplicates='drop'`이 필요하다.
-        Returns: (n_customers, 6) — customer_id, R, F, M, segment, revenue
+        Recency=(기준일-마지막 구매일).days이며 작을수록 좋으므로 점수만 역전한다.
+        frequency는 원본에 주문/바구니 ID가 없으므로 고유 거래행 수다.
+        drop_duplicates는 이전 API 호환용이며 동률 안전 평균순위 방식에서는 필요 없다.
         """
+        del drop_duplicates
         t = self.transactions
         agg = t.groupby("customer_id").agg(
-            last_order=("txn_date", "max"), frequency=("txn_id", "nunique"), monetary=("amount", "sum"))
+            last_order=("txn_date", "max"), frequency=("txn_id", "nunique"), monetary=("amount", "sum")
+        )
         agg["recency"] = (self.reference_date - agg["last_order"]).dt.days
-        dup = "drop" if drop_duplicates else "raise"
-        for col, reverse in (("recency", True), ("frequency", False), ("monetary", False)):
-            ranked = pd.qcut(agg[col], q=quantiles, labels=False, duplicates=dup)
-            agg[f"{col[0].upper()}_score"] = (quantiles + 1 - ranked) if reverse else (ranked + 1)
-        agg["segment"] = (agg[["R_score", "F_score", "M_score"]].mean(axis=1)
-                           .pipe(lambda s: pd.qcut(s, 4, labels=["대체고객", "성장고객", "우수고객", "VIP"],
-                                                   duplicates="drop")))
-        return agg.reset_index()[["customer_id", "recency", "frequency", "monetary",
-                                  "R_score", "F_score", "M_score", "segment"]]
+        agg["R_score"] = tied_quantile_scores(agg["recency"], quantiles, reverse=True)
+        agg["F_score"] = tied_quantile_scores(agg["frequency"], quantiles)
+        agg["M_score"] = tied_quantile_scores(agg["monetary"], quantiles)
+        combined = agg[["R_score", "F_score", "M_score"]].mean(axis=1)
+        segment_score = tied_quantile_scores(combined, 4)
+        agg["segment"] = pd.Categorical.from_codes(segment_score - 1, categories=SEGMENT_LABELS, ordered=True)
+        return agg.reset_index()[[
+            "customer_id", "recency", "frequency", "monetary",
+            "R_score", "F_score", "M_score", "segment",
+        ]]
 
-    # ---------------------------------------------------------------- stage 7
     def report_insights(self, rfm: pd.DataFrame) -> dict:
-        """인사이트 3종을 '근거/실행/검증' 형태로 반환.  숫자는 이 함수가 직접 계산한 것만 쓴다."""
+        """집계값만 사용해 근거/실행/검증을 구성한다. 인과 효과는 주장하지 않는다."""
         total = float(rfm["monetary"].sum())
         vip = rfm[rfm["segment"] == "VIP"]
         others = rfm[rfm["segment"] != "VIP"]
         return {
-            "VIP_매출점유": {
-                "근거": f"VIP {len(vip)}명({len(vip)/len(rfm)*100:.1f}%)이 매출 {vip['monetary'].sum()/total*100:.1f}%를 낸다",
-                "실행": "VIP 전용 재구매 캠페인(주 1회)을 우선 편성하고 일반 세그먼트는 주 1회를 월 1회로 축소",
-                "검증": "4주 후 VIP 유지율과 1인당 매출을 세그먼트별로 재측정, 유지율이 오르면 계속·아니면 중단",
+            "VIP_매출지표점유": {
+                "근거": f"VIP {len(vip)}명({len(vip)/len(rfm)*100:.1f}%)이 정규화 매출지표의 {vip['monetary'].sum()/total*100:.1f}%를 차지한다",
+                "실행": f"대상은 VIP {len(vip)}명이다. 실제 발송 전 더 긴 이력으로 재계산하고 재구매 캠페인을 시뮬레이션한다. 기대 효과는 재구매율·유지율 개선 여부를 확인하는 것이다.",
+                "검증": "이후 기간의 유지율·재구매율·1인당 매출을 사전 등록한 대조군과 비교한다. 차이가 없으면 가설이 반증되며 현재 관찰 기간만으로 효과를 주장하지 않는다.",
             },
-            "Recency_역전": {
-                "근거": f"VIP 평균 Recency {vip['recency'].mean():.1f}일 vs 나머지 {others['recency'].mean():.1f}일 — R 점수를 뒤집지 않으면 VIP가 '가장 오래된 고객'이 된다",
-                "실행": "점수 계산에 reverse를 적용하고, 단위 테스트로 'VIP 평균 R < 전체 중앙값'을 고정",
-                "검증": "check_requirements.py의 assert가 CI에서 매번 실행",
+            "Recency_방향": {
+                "근거": f"VIP 평균 Recency {vip['recency'].mean():.2f}일, 나머지 {others['recency'].mean():.2f}일",
+                "실행": "대상은 VIP와 나머지 세그먼트의 배정 규칙이다. R만 역전하고 동률은 같은 점수로 유지해 세그먼트 오배정을 줄인다. 빈도는 바구니가 아닌 거래행 수로 명시한다.",
+                "검증": "VIP 평균 Recency < 전체 중앙값 및 역순 실패 사례를 자동 검사하고, 방향이 맞지 않으면 현재 세분화를 반증된 것으로 거부한다.",
             },
-            "이미지_클릭_구매_가설": {
-                "근거": "라쿠텐 ICIP 2018 연구는 밝기·대비·선명도 등을 함께 조정한 이미지의 A/B 테스트에서 평균 CTR 상대 증가 15.7%를 보고했다. 밝기 단독 효과나 구매 전환 개선의 증거는 아니다. 현재 합성 데이터에는 노출·클릭·세션 기록이 없어 이 가설의 CTR·구매 전환을 계산하지 않았다.",
-                "실행": "필수 img_mean/img_std와 상품명 피처를 유지한다. 휘도·상품 영역 밝기·과노출 후보 비율을 추가 분석하는 계획을 세우고, 동일 상품의 원본/보정 이미지를 가격·노출 위치가 같은 조건에서 무작위 A/B 노출한다. 흰 배경과 상품 디테일 손실은 구분한다.",
-                "검증": "이미지 버전별 노출·클릭·세션·구매를 수집해 CTR=clicks/impressions와 구매 전환율=purchasing_sessions/sessions를 별도로 비교한다. 카테고리별 효과·신뢰구간·디테일 손실을 보고하고, 기준 CTR·최소 검출 효과·유의수준·검정력으로 표본수를 사전 산정한다. 출처: https://bjornstenger.github.io/papers/chae_icip2018.pdf",
+            "이미지_참여가설": {
+                "근거": "실제 상품 이미지와 가격의 상관을 계산했지만 노출·클릭·세션은 없다.",
+                "실행": "대상은 VIP·우수고객이다. 동일 상품 원본/보정안의 무작위 노출 실험을 별도 설계해 CTR·구매 전환 개선 여부를 검증한다.",
+                "검증": "추가로 노출·클릭·세션·구매와 배정 로그를 수집해 CTR과 구매 전환을 나누어 평가한다. 차이가 없으면 가설이 반증되며 현재 상관으로 효과를 추론하지 않는다.",
             },
         }

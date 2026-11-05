@@ -1,100 +1,149 @@
 {
-  "schema": {
-    "n_products": 1200,
-    "n_txns": 30000,
-    "n_cols": 9,
-    "n_dtypes": 3,
-    "n_customers": 1190
+  "data_provenance": {
+    "dataset": "H&M Personalized Fashion Recommendations — real public data, derived subset",
+    "synthetic": false,
+    "original_source": "https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations",
+    "source_kind": "github_mirror_tail_window",
+    "mirror_commit": "a3184bf24dbb78c67dd9863dd0aebb93e1b9b462",
+    "source_transaction_rows": 531967,
+    "source_transaction_sha256": "c0098b8215693aa1bcae386e86e27299b41aa3f7ffada685345e509b7eb3a44e",
+    "articles_sha256": "25f21882053517f7684ea43f524225a9481a7bb9aab9cf0abfc7fe8c4576a72b",
+    "sampling_method": "lowest SHA-256(seed:customer_id), then all transactions for selected customers; retain products with a real available image",
+    "sampling_seed": 20261105,
+    "removed_transactions_without_image": 18,
+    "license_scope": "Non-Commercial Purposes & Academic Research; raw data/images are not committed or redistributed here",
+    "price_unit": "H&M normalized/scaled value; not KRW"
   },
-  "missing_price_n": 36,
+  "schema": {
+    "n_products": 2295,
+    "n_transactions": 3894,
+    "n_product_columns": 16,
+    "n_dtypes": 3,
+    "n_customers": 998,
+    "n_images": 2295,
+    "image_shape": [
+      2295,
+      32,
+      32,
+      3
+    ],
+    "date_min": "2020-09-08",
+    "date_max": "2020-09-22"
+  },
+  "actual_missing": {
+    "description_before": 3,
+    "description_after": 0,
+    "price_before": 0
+  },
   "imputation": {
-    "global_median_MAE": 88566.7,
-    "groupby_median_MAE": 32544.4,
-    "n_evaluated": 36,
-    "주의": "처음엔 positional index 를 product_id 로 잘못 짝지어 MAE 0.0(=검증 무효)이 나왔다. 정답지 비교는 결측 행에서만 성립한다",
+    "method": "deterministic 10% holdout of observed real prices; masked only in an evaluation copy",
+    "n_evaluated": 253,
+    "global_median_MAE": 0.01896151269511622,
+    "groupby_median_MAE": 0.01794134789307965,
+    "group_minus_global_MAE": -0.001020164802036573,
+    "min_group": 30,
     "MAE_by_category": {
-      "전체중앙값": {
-        "book": 19030.0,
-        "electronics": 444366.7,
-        "fashion": 18635.7,
-        "toys": 11833.3
+      "global": {
+        "Accessories": 0.01308474576271188,
+        "Bags": 0.003389830508474502,
+        "Garment Full body": 0.017658340767172143,
+        "Garment Lower body": 0.018990112994350262,
+        "Garment Upper body": 0.021891217257318938,
+        "Nightwear": 0.012090395480225969,
+        "Shoes": 0.03771186440677965,
+        "Socks & Tights": 0.0161762711864407,
+        "Swimwear": 0.01591525423728815,
+        "Underwear": 0.011308313155770792,
+        "Unknown": 0.007915254237288151
       },
-      "그룹중앙값": {
-        "book": 4100.0,
-        "electronics": 136816.7,
-        "fashion": 17314.3,
-        "toys": 11216.7
+      "group": {
+        "Accessories": 0.008743502824858753,
+        "Bags": 0.003389830508474502,
+        "Garment Full body": 0.01605263157894738,
+        "Garment Lower body": 0.018028633795582946,
+        "Garment Upper body": 0.02210693374422187,
+        "Nightwear": 0.012745762711864386,
+        "Shoes": 0.02754237288135595,
+        "Socks & Tights": 0.00487796610169492,
+        "Swimwear": 0.012949152542372883,
+        "Underwear": 0.010420500403551256,
+        "Unknown": 0.007915254237288151
       }
     }
   },
-  "iqr_flag_pct": {
-    "normal": 0.54,
-    "lognormal": 7.16,
-    "price_real": 20.67
-  },
   "outliers": {
-    "n_flagged": 248,
-    "max_price": 57850811.0,
-    "p99_price": 1581064.0,
-    "clip_would_move_rows": 248
+    "policy": "flag_only",
+    "k": 1.5,
+    "n_flagged": 113,
+    "price_outlier_pct": 4.92,
+    "q1": 0.0169322033898305,
+    "q3": 0.0423559322033898,
+    "lower_fence": -0.021203389830508443,
+    "upper_fence": 0.08049152542372874,
+    "p99_price": 0.1186271186440677,
+    "max_price": 0.4220338983050847
   },
   "vectorization": {
-    "loop_s": 0.0086,
-    "vectorized_s": 0.0269,
-    "speedup_loop_vs_vec": 0.32,
-    "pure_python_s_per_image": 0.00042,
-    "vectorized_s_per_image": 2.2e-05,
-    "rowloop_s_per_image": 7e-06,
-    "speedup_pure_vs_vectorized": 18.8,
-    "speedup_pure_vs_rowloop": 58.8,
+    "loop_s": 0.018733,
+    "vectorized_s": 0.053013,
+    "speedup_loop_vs_vec": 0.35,
+    "pure_python_s_per_image": 0.00037069255333335607,
+    "vectorized_s_per_image": 2.3099346405228758e-05,
+    "rowloop_s_per_image": 8.162527233115469e-06,
+    "speedup_pure_vs_vectorized": 16.04775073849909,
+    "speedup_pure_vs_rowloop": 45.41394383708174,
     "n_pure_sample": 150
   },
   "correlation": {
-    "price__img_mean": 0.119,
-    "price__rating": 0.033
-  },
-  "correlation_variants": {
-    "피어슨(원본)": 0.1185,
-    "피어슨(1·99 클리핑)": 0.5245,
-    "피어슨(log1p)": 0.6689,
-    "스피어만(원본)": 0.6477,
-    "vs 생성 원본(타당도)": 0.5746
-  },
-  "correlation_주의": "r(price,img_mean)=0.119 는 '이상치 미처리 + 피어슨' 조합의 측정값이다. 같은 데이터에서 클리핑·로그·스피어만은 r 을 올린다. 따라서 '이미지로 가격을 설명할 수 없다'는 비즈니스 결론이 아니라 **잣대 의존적 관측**이다. 그리고 이 데이터에는 노출·클릭 컬럼이 0개라 CTR·CVR 은 정의조차 되지 않는다(probe_a1_2 실측).",
-  "insights_key": {
-    "img_mean_실체": "썸네일 (32,32,3) uint8 의 픽셀 평균 = 밝기(0~255). KPI 아님",
-    "img_mean_결론": "피어슨 0.119 / 클리핑 0.525 / log 0.669 / 스피어만 0.648 → 잣대에 따라 크기 변화, 방향은 +로 유지",
-    "참여지표": "impressions·clicks 0컬럼 → CTR/CVR 계산 불가(요구사항 결함으로 기록)"
+    "price__img_mean": -0.1576040010795008,
+    "price__transaction_count": 0.02602836953939733,
+    "n_pairs": 2295,
+    "variants": {
+      "Pearson|none|raw|none": -0.1576040010795008,
+      "Pearson|1/99 clip|raw|none": -0.17821875479805868,
+      "Pearson|none|log(price),log1p(img)|none": -0.20150998440935294,
+      "Spearman|none|ranks|none": -0.23215165615270714,
+      "Pearson|none|category-centered|category": -0.09519891087350911
+    },
+    "caution": "Observed association in a selected-customer, 15-day mirror subset; not image quality, CTR, conversion, or causality."
   },
   "rfm": {
-    "n_customers": 1190,
+    "n_customers": 998,
+    "frequency_definition": "unique source transaction lines; no basket/order ID supplied",
     "segments": {
       "대체고객": {
-        "n": 345,
-        "매출점유율_%": 4.3,
-        "평균Recency_일": 68.3
+        "n": 277,
+        "revenue_share_pct": 7.7896557934257284,
+        "mean_recency_days": 11.021660649819495,
+        "mean_frequency_lines": 1.3610108303249098
       },
       "성장고객": {
-        "n": 277,
-        "매출점유율_%": 12.4,
-        "평균Recency_일": 22.6
+        "n": 208,
+        "revenue_share_pct": 9.519296710858766,
+        "mean_recency_days": 7.663461538461538,
+        "mean_frequency_lines": 2.014423076923077
       },
       "우수고객": {
-        "n": 314,
-        "매출점유율_%": 27.6,
-        "평균Recency_일": 11.3
+        "n": 279,
+        "revenue_share_pct": 26.42673871066219,
+        "mean_recency_days": 7.584229390681004,
+        "mean_frequency_lines": 3.849462365591398
       },
       "VIP": {
-        "n": 254,
-        "매출점유율_%": 55.7,
-        "평균Recency_일": 4.9
+        "n": 234,
+        "revenue_share_pct": 56.26430878505331,
+        "mean_recency_days": 4.6239316239316235,
+        "mean_frequency_lines": 8.649572649572649
       }
     },
-    "VIP_평균Recency": 4.9,
-    "비VIP_평균Recency": 35.6,
-    "역순실수_VIP_평균Recency": 95.9,
-    "역순실수_VIP_고객수": 232,
-    "역순실수_매출점유율_%": 7.9,
-    "gate_VIP_recency_더작음": true
+    "VIP_n": 234,
+    "VIP_revenue_share_pct": 56.26430878505331,
+    "VIP_mean_recency": 4.6239316239316235,
+    "non_VIP_mean_recency": 8.852094240837696,
+    "all_recency_median": 8.0,
+    "naive_VIP_mean_recency": 10.089108910891088,
+    "naive_VIP_revenue_share_pct": 42.238622474647784,
+    "gate_VIP_recency_lower": true,
+    "gate_naive_reversal_is_worse": true
   }
 }

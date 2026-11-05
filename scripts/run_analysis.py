@@ -1,12 +1,14 @@
-"""A1-1 분석 러너 — 전처리·피처·통계·시각화·RFM을 한 번에 돌리고 **숫자를 파일로 남긴다**.
+"""실제 H&M 부분집합으로 EDA·이미지 피처·6종 시각화·RFM을 실행한다.
 
-    python scripts/run_analysis.py            # data/ 필요
-산출: reports/metrics.json, reports/analysis.md, figures/*.png
+    python scripts/prepare_hm_data.py --download-mirror
+    python scripts/run_analysis.py
+    python scripts/spec_curve.py
 
-설계에서 온 규칙: 리포트에 적히는 모든 숫자는 이 스크립트가 쓴 JSON에서 나온다(직접 쓰지 않는다).
+모든 수치는 실행 결과에서 계산한다. 원화 환산, 평점·재고·노출·클릭 생성은 하지 않는다.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import sys
@@ -20,293 +22,398 @@ import pandas as pd
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from pipeline import DataAnalyzer  # noqa: E402
+from pipeline import SEGMENT_LABELS, DataAnalyzer, tied_quantile_scores  # noqa: E402
 
-plt.rcParams["font.family"] = ["Arial Unicode MS", "Noto Sans CJK JP", "DejaVu Sans"]   # 한글 라벨 누락 방지(이 환경의 실재 폰트)
-plt.rcParams["axes.unicode_minus"] = False
-
-FIG = ROOT / "figures"
-REP = ROOT / "reports"
+DATA, FIG, REP = ROOT / "data", ROOT / "figures", ROOT / "reports"
 FIG.mkdir(exist_ok=True, parents=True)
 REP.mkdir(exist_ok=True, parents=True)
+plt.rcParams["axes.unicode_minus"] = False
 
 
-def save(fig, name: str) -> None:
-    """그림 저장 전 제목·축 레이블을 강제 검사(요구 6번의 가장 흔한 감점).
-
-    twin 축(twinx)에는 제목·x축 라벨이 없으므로 '첫 축의 제목 + 축마다 최소 하나의 라벨'로 검사한다.
-    """
-    assert fig.axes, f"{name}: 축이 없다"
-    assert fig.axes[0].get_title(), f"{name}: 제목 누락"
-    real = [a for a in fig.axes if getattr(a, "_colorbar", None) is None]   # colorbar 축은 검사에서 제외
-    for ax in real:
-        assert ax.get_xlabel() or ax.get_ylabel(), f"{name}: 축 레이블 누락"
-    assert any(ax.get_xlabel() for ax in real), f"{name}: x축 레이블 누락"
-    assert any(ax.get_ylabel() for ax in real), f"{name}: y축 레이블 누락"
+def save(fig: plt.Figure, name: str) -> None:
+    if not fig.axes or not fig.axes[0].get_title():
+        raise AssertionError(f"{name}: title/axes missing")
+    real = [axis for axis in fig.axes if getattr(axis, "_colorbar", None) is None]
+    if not any(axis.get_xlabel() for axis in real) or not any(axis.get_ylabel() for axis in real):
+        raise AssertionError(f"{name}: axis label missing")
     fig.savefig(FIG / name, dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
+def masked_by_hash(product_id: str, seed: int, modulo: int = 10) -> bool:
+    digest = hashlib.sha256(f"price-holdout:{seed}:{product_id}".encode("utf-8")).hexdigest()
+    return int(digest[:12], 16) % modulo == 0
+
+
+def finite_float(value: float) -> float:
+    result = float(value)
+    if not np.isfinite(result):
+        raise ValueError(f"non-finite metric: {value}")
+    return result
+
+
+def render_analysis_report() -> None:
+    """저장된 실행 지표만으로 리포트를 다시 쓴다(spec_curve 실행 후에도 호출)."""
+    metrics_path = REP / "metrics.json"
+    if not metrics_path.exists():
+        return
+    m = json.loads(metrics_path.read_text(encoding="utf-8"))
+    schema, imp, out, corr, rfm = m["schema"], m["imputation"], m["outliers"], m["correlation"], m["rfm"]
+    meta = m["data_provenance"]
+    is_mirror = meta["source_kind"] == "github_mirror_tail_window"
+    source_reference = (f"원본 미러 고정 커밋: `{meta['mirror_commit']}`" if is_mirror else
+                        "입력 경로: 사용자가 Kaggle 규칙에 동의하고 직접 다운로드한 전체 원본")
+    window_caution = ("15일 단면으로 캠페인 효과를 주장하지 않는다." if is_mirror else
+                      "이 관찰 기간의 상관·RFM만으로 캠페인 효과를 주장하지 않는다.")
+    source_window_limit = ("GitHub 미러의 거래는 원본 마지막 15일 부분집합이다. 장기 충성도, 계절성, 진짜 VIP를 식별하는 분석이 아니다."
+                           if is_mirror else
+                           "Kaggle 전체 원본에서 고객 해시 표본을 뽑았어도 관찰 기간의 구매 이력만 사용한다. 미래 이탈·캠페인 효과는 별도 검증이 필요하다.")
+    image_limit = ("이미지는 미러가 256×256으로 축소한 실제 상품 사진이며 이 코드가 32×32 RGB로 다시 축소했다."
+                   if is_mirror else "Kaggle 원본 상품 사진을 이 코드가 32×32 RGB로 축소했다.") + " 원본 해상도의 질감·선명도 평가는 불가능하다."
+    lines = [
+        "# H&M 실데이터 A1-1 분석 리포트",
+        "",
+        "> 자동 생성: `scripts/run_analysis.py`; 60개 분석 스펙은 `scripts/spec_curve.py` 실행 후 갱신.",
+        "",
+        "## 데이터와 단위",
+        "",
+        f"- 실제 H&M 공개 데이터의 부분집합: **상품 {schema['n_products']:,}개 · 거래행 {schema['n_transactions']:,}건 · 고객 {schema['n_customers']:,}명 · 실제 이미지 {schema['n_images']:,}장**.",
+        f"- 관찰 기간: **{schema['date_min']}~{schema['date_max']}**. 고객은 SHA-256 순위로 선택하고 그 고객의 기간 내 거래를 유지했다.",
+        f"- {source_reference}. 원본 파일 해시와 표본 규칙은 `data/dataset_meta.json`에 기록했다.",
+        "- **가격·amount는 원화가 아닌 H&M 정규화 값**이다. 합산은 상대 매출지표로만 해석한다. 평점·재고·주문 ID·노출·클릭·세션은 원본에 없으므로 만들지 않았다.",
+        f"- 원본 거래 파일 {meta['source_transaction_rows']:,}행에서 고객을 선택한 뒤, 이미지가 없는 상품의 {meta['removed_transactions_without_image']:,}개 선택 거래행을 제외했다. 상품 가격은 선택 고객 표본 안의 article_id별 실거래 중앙값이다.",
+        "",
+        "## 실제 결측과 가격 홀드아웃 대치 평가",
+        "",
+        f"- 실제 상품 설명 결측은 {m['actual_missing']['description_before']}건이며 `unknown` 처리 후 {m['actual_missing']['description_after']}건이다. 실제 가격 결측은 0건이다.",
+        f"- 대치법 비교를 위해 관측된 실제 가격의 결정론적 10%({imp['n_evaluated']}건)를 **평가용 사본에서만** 가리고, 남은 값으로 대치한 뒤 원래 실제 가격과 비교했다.",
+        f"- 전체 중앙값 MAE: **{imp['global_median_MAE']:.10f}** / 카테고리별 중앙값 MAE: **{imp['groupby_median_MAE']:.10f}** (정규화 가격 단위).",
+        "- 이 수치는 합성 정답지가 아니라 실제 관측값 홀드아웃이다. 메인 분석의 가격은 가리지 않았다.",
+        "",
+        "## 기술통계와 IQR",
+        "",
+    ]
+    summary = pd.read_csv(REP / "summary.csv", index_col=0)
+    lines += ["| 변수 | 평균 | 중앙값 | 표준편차 | Q1 | Q3 |", "|---|---:|---:|---:|---:|---:|"]
+    for name in ["price", "transaction_count", "word_count", "img_mean", "img_std", "img_saturation"]:
+        row = summary.loc[name]
+        lines.append(f"| {name} | {row['mean']:.6f} | {row['median']:.6f} | {row['std']:.6f} | {row['25%']:.6f} | {row['75%']:.6f} |")
+    price_stats = summary.loc["price"]
+    transaction_stats = summary.loc["transaction_count"]
+    image_stats = summary.loc["img_mean"]
+    lines += [
+        "",
+        "### 기술통계 해석",
+        "",
+        f"- 가격 평균 **{price_stats['mean']:.6f}**이 중앙값 **{price_stats['median']:.6f}**보다 크고 Q3는 **{price_stats['75%']:.6f}**다. 소수 고가 상품이 있는 오른쪽 꼬리를 고려해 평균만으로 대표 가격을 말하지 않는다(정규화 가격 단위).",
+        f"- 상품별 거래행 수는 평균 **{transaction_stats['mean']:.3f}행**, 중앙값 **{transaction_stats['median']:.1f}행**, Q3 **{transaction_stats['75%']:.1f}행**이다. 절반 이상의 상품은 거래가 적으므로 상품 가격·상관을 읽을 때 `transaction_count`를 함께 확인한다.",
+        f"- 이미지 평균 밝기는 평균 **{image_stats['mean']:.6f}**, 중앙값 **{image_stats['median']:.6f}**, 표준편차 **{image_stats['std']:.6f}**다. 이 값은 픽셀 요약일 뿐 사진 품질이나 선호도를 뜻하지 않는다.",
+        "",
+        f"- 실제 가격의 IQR(k=1.5) 플래그: **{out['n_flagged']}건({out['price_outlier_pct']}%)**; Q1={out['q1']:.8f}, Q3={out['q3']:.8f}, 상한={out['upper_fence']:.8f}.",
+        "- 플래그는 오류 판정이 아니다. 고가 상품을 삭제하지 않고 기본 `flag`로 유지한다.",
+        "",
+        "## 실제 이미지 피처와 NumPy 축 연산",
+        "",
+        f"- `(N,32,32,3) uint8` 실제 이미지에서 RGB/255 평균·표준편차·채도 범위를 계산했다. 이미지를 가격에 맞춰 밝히지 않았다.",
+        f"- 전체 벡터화 {m['vectorization']['vectorized_s']}s / 이미지별 NumPy 루프 {m['vectorization']['loop_s']}s. 1장당 순수 Python {m['vectorization']['pure_python_s_per_image']}s, 벡터화 {m['vectorization']['vectorized_s_per_image']}s (순수 Python 표본 {m['vectorization']['n_pure_sample']}장).",
+        "- 시간은 하드웨어·배열 크기에 따라 바뀌므로 절대 배율보다 세 경로의 측정 조건을 함께 본다.",
+        "",
+        "## 상관: 잣대를 함께 보고",
+        "",
+        f"- 가격–이미지 평균: Pearson 원본 **r={corr['price__img_mean']:.4f}**, n={corr['n_pairs']:,}.",
+        f"- 가격–거래행 수: 상품별 Pearson **r={corr['price__transaction_count']:.4f}**, n={corr['n_pairs']:,}.",
+        "",
+        "| 방법 | 이상치 | 스케일 | 카테고리 통제 | r | n |",
+        "|---|---|---|---|---:|---:|",
+    ]
+    variants = pd.read_csv(REP / "correlation_variants.csv")
+    for row in variants.itertuples():
+        lines.append(f"| {row.method} | {row.outlier} | {row.scale} | {row.control} | {row.r:.4f} | {row.n:,} |")
+    lines += [
+        "",
+        "이 값들은 밝기와 가격의 **선형/순위 관측 관계**다. 이미지 품질, CTR, 구매 전환, 인과효과를 뜻하지 않는다.",
+        f"가격–거래행 수는 r={corr['price__transaction_count']:.4f}로 0에 가까워, 이 선택 표본에서는 상품 가격과 거래량의 선형 관계가 약하다. 따라서 가격만으로 판매량을 예측하거나 가격 변경의 인과효과를 주장하지 않는다.",
+        "",
+    ]
+    spec_path = REP / "spec_curve_summary.json"
+    if spec_path.exists():
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        lines += [
+            "### 60개 스펙 커브",
+            "",
+            f"계수 5종×이상치 3종×스케일 2종×카테고리 통제 2종의 r 범위는 **{spec['r_min']:.4f}~{spec['r_max']:.4f}**, 중위 **{spec['r_median']:.4f}**다.",
+            f"중위값과 부호가 같은 비율은 {spec['sign_agreement']*100:.1f}%, |r|<0.1 비율은 {spec['near_zero_share']*100:.1f}%다. 어느 한 스펙만 골라 시장 일반론을 만들지 않는다.",
+            "",
+        ]
+    lines += [
+        "## RFM 세분화",
+        "",
+        "기준일은 최종 거래 다음 날이다. R만 역전하고, 짧은 기간의 정수 빈도 동률은 평균순위로 같은 점수를 부여했다. F는 주문/바구니가 아니라 **고유 거래행 수**다.",
+        "",
+        "| 세그먼트 | 고객 수 | 매출지표 점유 | 평균 Recency(일) | 평균 거래행 수 |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for name, row in rfm["segments"].items():
+        lines.append(f"| {name} | {row['n']:,} | {row['revenue_share_pct']:.1f}% | {row['mean_recency_days']:.2f} | {row['mean_frequency_lines']:.2f} |")
+    lines += [
+        "",
+        f"- VIP 평균 Recency **{rfm['VIP_mean_recency']:.2f}일**, 비VIP **{rfm['non_VIP_mean_recency']:.2f}일**, 전체 중앙값 {rfm['all_recency_median']:.2f}일; 방향 게이트={rfm['gate_VIP_recency_lower']}.",
+        f"- R을 역전하지 않은 실패 모드의 VIP 평균 Recency는 **{rfm['naive_VIP_mean_recency']:.2f}일**이다.",
+        "",
+        "## 사업 제안 (근거 → 실행 → 검증)",
+        "",
+        "1. **단기 VIP를 후보로 하되 실제 발송 전 긴 이력으로 재계산한다.**",
+        f"   - 근거: VIP {rfm['VIP_n']:,}명이 정규화 매출지표의 {rfm['VIP_revenue_share_pct']:.1f}%를 차지한다.",
+        f"   - 실행: **대상 세그먼트는 VIP {rfm['VIP_n']:,}명**이다. 최소 6~12개월 이력으로 RFM을 다시 계산한 뒤 재구매 캠페인 대상을 시뮬레이션한다. **기대 효과는 재구매율·유지율 개선 여부를 확인하는 것**이며 효과를 미리 단정하지 않는다.",
+        f"   - 검증: 사전 정한 대조군과 이후 재구매율·유지율·1인당 매출을 비교하고, 차이가 없으면 VIP 캠페인 가설을 반증된 것으로 본다. {window_caution}",
+        "2. **상품 설명 누락과 가격 누락을 분리한 품질 게이트를 둔다.**",
+        f"   - 근거: 실제 설명 결측 {m['actual_missing']['description_before']}건, 가격 홀드아웃 그룹 대치 MAE {imp['groupby_median_MAE']:.10f}.",
+        "   - 실행: **대상 세그먼트는 VIP·우수·성장·대체고객 전체의 상품 탐색에 필요한 설명·가격 누락 레코드**다. 텍스트는 `unknown`으로 표시하고 가격은 카테고리별 중앙값과 소그룹 전체 중앙값 fallback을 적용한다. **기대 효과는 결측으로 인한 분석 제외와 대치 오차 감소**다.",
+        "   - 검증: 추가로 확보한 실제 가격을 같은 해시 규칙으로 홀드아웃해 MAE를 재측정한다. 그룹 대치가 전체 중앙값보다 악화되면 현재 선택이 반증되므로 전체 중앙값으로 되돌린다.",
+        "3. **이미지 피처는 가격 결론이 아니라 참여 실험의 입력으로 제한한다.**",
+        f"   - 근거: 실제 이미지–가격 Pearson 원본 r={corr['price__img_mean']:.4f}; 노출·클릭·세션은 0개다.",
+        "   - 실행: **대상 세그먼트는 VIP·우수고객**이며, 이들에게 동일 상품의 원본/보정 이미지를 가격과 노출위치가 같은 조건으로 무작위 배정하는 별도 실험을 설계한다. **기대 효과는 CTR·구매 전환 개선 여부를 검증하는 것**이다.",
+        "   - 검증: 추가로 노출·클릭·세션·구매와 무작위 배정 로그를 수집해 CTR과 구매 전환을 나누어 비교한다. 대조 차이가 없으면 이미지 가설은 반증되며, 현재 상관을 실험 효과로 인용하지 않는다.",
+        "",
+        "## 한계",
+        "",
+        f"- {source_window_limit}",
+        "- 고객 표본 내 가격 중앙값이며 일부 상품은 거래 수가 적다. `transaction_count`를 함께 보고 전체 H&M 가격으로 일반화하지 않는다.",
+        f"- {image_limit}",
+        "- 원본 규칙은 비상업·학술/교육 용도다. 원본 CSV, 고객별 RFM, 원본/파생 이미지 배열은 Git에 올리지 않는다.",
+    ]
+    (REP / "analysis.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
-    m: dict = {}
-    products = pd.read_csv(ROOT / "data/products.csv")
-    txns = pd.read_csv(ROOT / "data/transactions.csv", parse_dates=["txn_date"])
-    imgs = np.load(ROOT / "data/images.npy")
-    truth = pd.read_csv(ROOT / "data/_groundtruth_price.csv")  # 검증 전용(분석에는 사용하지 않음)
+    for name in ["products.csv", "transactions.csv", "images.npy", "dataset_meta.json"]:
+        if not (DATA / name).exists():
+            raise FileNotFoundError(f"{DATA/name}가 없습니다. 먼저 scripts/prepare_hm_data.py를 실행하세요.")
+    meta = json.loads((DATA / "dataset_meta.json").read_text(encoding="utf-8"))
+    if meta.get("synthetic") is not False:
+        raise ValueError("실데이터 메타데이터가 아닙니다.")
+    products = pd.read_csv(DATA / "products.csv", dtype={"product_id": str})
+    txns = pd.read_csv(DATA / "transactions.csv", dtype={"product_id": str, "customer_id": str}, parse_dates=["order_date"])
+    images = np.load(DATA / "images.npy")
+    if images.shape != (len(products), 32, 32, 3) or images.dtype != np.uint8:
+        raise ValueError(f"unexpected images: {images.shape}/{images.dtype}")
+    if not set(txns["product_id"]) <= set(products["product_id"]):
+        raise ValueError("transactions contain products absent from products.csv")
 
-    ana = DataAnalyzer(products=products, transactions=txns, images=imgs).load_data()
-    m["schema"] = {"n_products": int(len(products)), "n_txns": int(len(txns)),
-                   "n_cols": int(products.shape[1]), "n_dtypes": int(len({str(x) for x in products.dtypes})),
-                   "n_customers": int(txns["customer_id"].nunique())}
-
-    # --- E1. 결측 처리: 전체 중앙값 vs 카테고리별 중앙값 (정답지 대비 MAE) -----------------
-    filled = ana.handle_missing_values(strategy="median")
-    filled_g = ana.handle_missing_values(strategy="groupby_median", min_group=30)
-    merged = filled[["product_id", "category", "price"]].merge(truth, on="product_id")
-    merged_g = filled_g[["product_id", "category", "price"]].merge(truth, on="product_id")
-    na_ids = products.loc[products["price"].isna(), "product_id"]
-    m["missing_price_n"] = int(len(na_ids))
-    sub, subg = merged[merged["product_id"].isin(na_ids)], merged_g[merged_g["product_id"].isin(na_ids)]
-    err_global = (sub["price"] - sub["price_true"]).abs()
-    err_group = (subg["price"] - subg["price_true"]).abs()
-    m["imputation"] = {"global_median_MAE": round(float(err_global.mean()), 1),
-                       "groupby_median_MAE": round(float(err_group.mean()), 1),
-                       "n_evaluated": int(len(sub)),
-                       "주의": "처음엔 positional index 를 product_id 로 잘못 짝지어 MAE 0.0(=검증 무효)이 나왔다. 정답지 비교는 결측 행에서만 성립한다"}
-    m["imputation"]["MAE_by_category"] = {
-        "전체중앙값": {k: round(float(v), 1) for k, v in
-                       sub.assign(e=(sub["price"] - sub["price_true"]).abs()).groupby("category")["e"].mean().items()},
-        "그룹중앙값": {k: round(float(v), 1) for k, v in
-                       subg.assign(e=(subg["price"] - subg["price_true"]).abs()).groupby("category")["e"].mean().items()}}
-
-    # --- E2. 이상치: IQR 플래그 비율(정규 vs 로그정상) + 실데이터 비율 ----------------------
-    rng = np.random.default_rng(0)
-    demo = pd.DataFrame({"normal": rng.normal(0, 1, 5000), "lognormal": np.exp(rng.normal(0, 1, 5000))})
-    iqr_pct = {}
-    for col in demo.columns:
-        q1, q3 = demo[col].quantile([0.25, 0.75])
-        lo, hi = q1 - 1.5 * (q3 - q1), q3 + 1.5 * (q3 - q1)
-        iqr_pct[col] = round(float(((demo[col] < lo) | (demo[col] > hi)).mean() * 100), 2)
-    outlier_df = ana.detect_outliers("price", k=1.5, policy="flag")
-    iqr_pct["price_real"] = ana.log["price_outlier_pct"]
-    m["iqr_flag_pct"] = iqr_pct
-    m["outliers"] = {"n_flagged": int(outlier_df["price_is_outlier"].sum()),
-                     "max_price": round(float(products["price"].max()), 0),
-                     "p99_price": round(float(products["price"].quantile(0.99)), 0),
-                     "clip_would_move_rows": int((outlier_df.loc[outlier_df["price_is_outlier"], "price"]
-                                                  > products["price"].quantile(0.75) + 1.5 *
-                                                  (products["price"].quantile(0.75) - products["price"].quantile(0.25))).sum())}
-
-    # --- E3. 멀티모달 피처 + 성능 측정 ------------------------------------------------------
-    feats = ana.add_multimodal_features()
-    m["vectorization"] = {"loop_s": ana.log["img_time_loop_s"], "vectorized_s": ana.log["img_time_vectorized_s"],
-                          "speedup_loop_vs_vec": ana.log["img_speedup_loop_vs_vec"]}
-    n_pure = 150
-    t0 = time.perf_counter()
-    for img in imgs[:n_pure]:                       # 순수 Python: NumPy 집계 메서드 없이 리스트 순환으로 평균
-        s = 0
-        for row in img.tolist():                    # (H, W, C) → 중첩 리스트 3단
-            for px in row:
-                for ch in px:
-                    s += ch
-        _ = s / img.size
-    t_pure = (time.perf_counter() - t0) / n_pure
-    vec_per = ana.log["img_time_vectorized_s"] / max(len(imgs), 1)
-    loop_per = ana.log["img_time_loop_s"] / max(len(imgs), 1)
-    m["vectorization"].update({"pure_python_s_per_image": round(t_pure, 5),
-                               "vectorized_s_per_image": round(vec_per, 6),
-                               "rowloop_s_per_image": round(loop_per, 6),
-                               "speedup_pure_vs_vectorized": round(t_pure / max(vec_per, 1e-12), 1),
-                               "speedup_pure_vs_rowloop": round(t_pure / max(loop_per, 1e-12), 1),
-                               "n_pure_sample": n_pure})
-
-    # --- E4. 통계·상관 ----------------------------------------------------------------------
-    summ = ana.summarize(feats.assign(price=filled_g["price"]))
-    summ.to_csv(REP / "summary.csv")
-    corr = feats[["price", "rating", "stock", "word_count", "img_mean", "img_std", "img_saturation"]].assign(
-        price=filled_g["price"].to_numpy()).corr()
-    corr.to_csv(REP / "correlation.csv")
-    r_price_img = float(corr.loc["price", "img_mean"])
-    r_price_rating = float(corr.loc["price", "rating"])
-    m["correlation"] = {"price__img_mean": round(r_price_img, 3), "price__rating": round(r_price_rating, 3)}
-
-    # ── "이미지 평균으로 무엇을 보나" 질문에 대한 실측 (2026-09-15) ────────────────────────
-    # 상관 하나만 적어놓고 결론을 만든 것이 문제였다. 같은 두 변수를 잣대 4개로 재고,
-    # 결론이 잣대에 따라 바뀌는 것을 리포트에 남긴다.
-    price_obs = filled_g["price"].to_numpy(dtype=float)
-    lo, hi = np.percentile(price_obs, [1, 99])
-    pair = pd.DataFrame({"price": price_obs,
-                         "price_clip": np.clip(price_obs, lo, hi),
-                         "img_mean": feats["img_mean"].to_numpy(dtype=float)})
-    r_raw = float(pair["price"].corr(pair["img_mean"]))                       # 피어슨(이상치 그대로)
-    r_clip = float(pair["price_clip"].corr(pair["img_mean"]))                 # 1/99 클리핑 후
-    r_log = float(np.log1p(pair["price_clip"]).corr(np.log1p(pair["img_mean"])))  # 로그 스케일
-    r_spear = float(pair["price"].corr(pair["img_mean"], method="spearman"))  # 순서만(외점 강인)
-    # 구성 타당도: 썸네일 밝기는 *원래 가격*에 묶어 생성했다(`data_gen.make_thumbnails`).
-    # 정답지는 검증 전용 원칙은 그대로 두되, "파이프라인이 신호를 주워야 검사가 산다"는 확인에만 쓴다.
-    gt_path = ROOT / "data" / "_groundtruth_price.csv"
-    r_true = float("nan")
-    if gt_path.exists():
-        gt = pd.read_csv(gt_path)["price_true"].to_numpy(dtype=float)
-        r_true = float(pd.Series(gt).corr(pair["img_mean"]))
-    var = pd.DataFrame([
-        {"잣대": "피어슨(원본)", "r": round(r_raw, 4), "무엇을 다른 문장으로 만드나": "이상치 248행이 상관을 깎는다"},
-        {"잣대": "피어슨(1·99 클리핑)", "r": round(r_clip, 4), "무엇을 다른 문장으로 만드나": "처리 정책 하나가 r 의 2~4배"},
-        {"잣대": "피어슨(log1p)", "r": round(r_log, 4), "무엇을 다른 문장으로 만드나": "스케일 선택도 결론 입력값"},
-        {"잣대": "스피어만(원본)", "r": round(r_spear, 4), "무엇을 다른 문장으로 만드나": "순서 기반이라 외점에 강함"},
-        {"잣대": "vs 생성 원본(타당도)", "r": round(r_true, 4), "무엇을 다른 문장으로 만드나": "파이프라인이 신호를 주웠다 = 검사 유효"},
-    ])
-    var.to_csv(REP / "correlation_variants.csv", index=False)
-    m["correlation_variants"] = {r["잣대"]: r["r"] for _, r in var.iterrows()}
-    m["correlation_주의"] = ("r(price,img_mean)=0.119 는 '이상치 미처리 + 피어슨' 조합의 측정값이다. "
-                          "같은 데이터에서 클리핑·로그·스피어만은 r 을 올린다. 따라서 '이미지로 가격을 설명할 수 "
-                          "없다'는 비즈니스 결론이 아니라 **잣대 의존적 관측**이다. 이미지의 사업적 확장은 밝기·대비 개선과 CTR·구매 전환의 관계를 별도로 검증한다. 그리고 이 데이터에는 노출·클릭 "
-                          "컬럼이 0개라 CTR·CVR 은 정의조차 되지 않는다(probe_a1_2 실측).")
-    m["insights_key"] = {"img_mean_실체": "썸네일 (32,32,3) uint8를 255로 나눈 RGB 픽셀 평균(0~1). 휘도 및 KPI와 구분",
-                         "img_mean_결론": f"피어슨 {r_raw:.3f} / 클리핑 {r_clip:.3f} / log {r_log:.3f} / "
-                                          f"스피어만 {r_spear:.3f} → 잣대에 따라 크기 변화, 방향은 +로 유지",
-                         "참여지표": "노출·클릭·세션 로그 없음 → CTR·구매 전환 효과 미검증. 원문 필수 요구의 결함이 아닌 확장 실험의 데이터 한계"}
-
-    # --- E5. 6종 시각화 ---------------------------------------------------------------------
-    fig, ax = plt.subplots(figsize=(6, 3.6))
-    ax.hist(np.log10(feats["price"].dropna()), bins=40)
-    ax.set_title("로그10(가격) 분포 — 오른쪽 꼬리가 이상치")
-    ax.set_xlabel("log10(price)"); ax.set_ylabel("상품 수")
-    save(fig, "01_hist_price.png")
-
-    pr = feats[["price"]].assign(price=filled_g["price"].to_numpy(), flagged=outlier_df["price_is_outlier"].to_numpy())
-    fig, ax = plt.subplots(figsize=(6, 3.6))
-    ax.boxplot([np.log10(pr.loc[~pr.flagged, "price"]), np.log10(pr["price"])],
-               tick_labels=["이상치 플래그 제외", "전체(플래그 포함)"])
-    ax.set_title("이상치 제외 전후 가격 분포 (box)")
-    ax.set_xlabel("처리"); ax.set_ylabel("log10(price)")
-    save(fig, "02_box_price_before_after.png")
-
-    seg = feats.assign(price=filled_g["price"].to_numpy()).groupby("category").agg(매출=("price", "sum"), 상품수=("price", "size"))
-    # 처음엔 twinx 로 겹쳐 그렸는데 두 눈금 스케일이 섞여 어느 막대가 무엇인지 읽히지 않았다(그림 03 확인).
-    # → 스케일이 다른 두 지표는 나란한 서브플롯이 정답.
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(7.6, 3.4))
-    seg["상품수"].plot.bar(ax=ax, color="#4477aa")
-    ax.set_title("카테고리별 상품 수")
-    ax.set_xlabel("카테고리"); ax.set_ylabel("상품 수"); ax.tick_params(axis="x", rotation=0); ax.set_ylim(0, seg["상품수"].max() * 1.25)
-    seg["매출"].plot.bar(ax=ax2, color="#aa6644")
-    ax2.set_title("카테고리별 매출 합(가격×수정, 로그아래)")
-    ax2.set_xlabel("카테고리"); ax2.set_ylabel("매출 합"); ax2.tick_params(axis="x", rotation=0)
-    ax2.set_yscale("log")
-    save(fig, "03_bar_segment.png")
-
-    fig, ax = plt.subplots(figsize=(5.4, 4.2))
-    im = ax.imshow(corr.values, vmin=-1, vmax=1, cmap="coolwarm")
-    ax.set_xticks(range(len(corr))); ax.set_xticklabels(corr.columns, rotation=90, fontsize=7)
-    ax.set_yticks(range(len(corr))); ax.set_yticklabels(corr.columns, fontsize=7)
-    for i in range(len(corr)):
-        for j in range(len(corr)):
-            ax.text(j, i, f"{corr.values[i, j]:.2f}", ha="center", va="center", fontsize=6)
-    ax.set_title("상관행렬(피어슨)")
-    ax.set_xlabel("변수(열)"); ax.set_ylabel("변수(행)")
-    fig.colorbar(im, ax=ax, fraction=.046, label="r")
-    save(fig, "04_heatmap_corr.png")
-
-    fig, ax = plt.subplots(figsize=(5.4, 4.0))
-    ax.scatter(feats["img_mean"], np.log10(feats["price"]), s=8, alpha=.5)
-    ax.set_title(f"이미지 평균 밝기 vs 가격 (r={r_price_img:.3f})")
-    ax.set_xlabel("img_mean (0~1)"); ax.set_ylabel("log10(price)")
-    save(fig, "05_scatter_price_vs_imgmean.png")
-
-    mon = txns.assign(month=txns["txn_date"].dt.to_period("M")).groupby("month")["amount"].sum()
-    fig, ax = plt.subplots(figsize=(6, 3.2))
-    mon.plot(ax=ax, marker="o")
-    ax.set_title("월별 매출 (line)")
-    ax.set_xlabel("월"); ax.set_ylabel("매출 합")
-    save(fig, "06_line_monthly_revenue.png")
-
-    # --- E6. RFM ----------------------------------------------------------------------------
-    rfm = ana.calculate_rfm(quantiles=5)
-    rfm.to_csv(REP / "rfm.csv", index=False)
-    vip = rfm[rfm["segment"] == "VIP"]
-    nonvip = rfm[rfm["segment"] != "VIP"]
-    # 일부러 뒤집지 않은 버전(실패 모드)을 함께 재고 → "역전 시" 리스크를 숫자로 남긴다
-    # 실패 모드 재현: R 점수를 뒤집지 않으면(qcut+1 그대로) '높은 점수 = 오래된 고객'이 되어
-    # VIP 버킷에 가장 잠수탄 고객이 모인다. (라벨을 뒤집는 것과는 다른 실수다)
-    naive = rfm.copy()
-    naive["R_score_naive"] = pd.qcut(naive["recency"], 5, labels=False, duplicates="drop") + 1
-    naive["segment_naive"] = pd.qcut(naive["R_score_naive"], 4, labels=["대체", "성장", "우수", "VIP"],
-                                     duplicates="drop")
-    m["rfm"] = {
-        "n_customers": int(len(rfm)),
-        "segments": {str(k): {"n": int(len(g)), "매출점유율_%": round(float(g["monetary"].sum() / rfm["monetary"].sum() * 100), 1),
-                             "평균Recency_일": round(float(g["recency"].mean()), 1)}
-                     for k, g in rfm.groupby("segment", observed=True)},
-        "VIP_평균Recency": round(float(vip["recency"].mean()), 1),
-        "비VIP_평균Recency": round(float(nonvip["recency"].mean()), 1),
-        "역순실수_VIP_평균Recency": round(float(naive.loc[naive["segment_naive"] == "VIP", "recency"].mean()), 1),
-        "역순실수_VIP_고객수": int((naive["segment_naive"] == "VIP").sum()),
-        "역순실수_매출점유율_%": round(float(naive.loc[naive["segment_naive"] == "VIP", "monetary"].sum()
-                                       / rfm["monetary"].sum() * 100), 1),
-        "gate_VIP_recency_더작음": bool(vip["recency"].mean() < rfm["recency"].median()),
+    m: dict = {
+        "data_provenance": {
+            "dataset": meta["dataset"], "synthetic": False,
+            "original_source": meta["original_source"], "source_kind": meta["source_kind"],
+            "mirror_commit": meta["mirror"]["commit"],
+            "source_transaction_rows": meta["source_files"][next(k for k in meta["source_files"] if k != "articles.csv")]["rows"],
+            "source_transaction_sha256": meta["source_files"][next(k for k in meta["source_files"] if k != "articles.csv")]["sha256"],
+            "articles_sha256": meta["source_files"]["articles.csv"]["sha256"],
+            "sampling_method": meta["sampling"]["method"], "sampling_seed": meta["sampling"]["seed"],
+            "removed_transactions_without_image": meta["sampling"]["removed_transactions_without_image"],
+            "license_scope": meta["license_scope"], "price_unit": "H&M normalized/scaled value; not KRW",
+        }
+    }
+    m["schema"] = {
+        "n_products": len(products), "n_transactions": len(txns), "n_product_columns": products.shape[1],
+        "n_dtypes": len({str(dtype) for dtype in products.dtypes}), "n_customers": txns["customer_id"].nunique(),
+        "n_images": len(images), "image_shape": list(images.shape),
+        "date_min": str(txns["order_date"].min().date()), "date_max": str(txns["order_date"].max().date()),
     }
 
-    # --- 리포트 -----------------------------------------------------------------------------
-    lines = ["# A1-1 분석 리포트 (자동 생성 — `scripts/run_analysis.py`)\n"]
-    lines.append("| 항목 | 값 |\n|---|---|")
-    for k, v in m["schema"].items():
-        lines.append(f"| {k} | {v} |")
-    lines.append(f"\n## 결측 처리 (정답지 대비 MAE · 결측 {m['imputation']['n_evaluated']}건)\n")
-    lines.append(f"- 전체 중앙값: **{m['imputation']['global_median_MAE']}**")
-    lines.append(f"- 카테고리별 중앙값: **{m['imputation']['groupby_median_MAE']}**")
-    lines.append(f"- 카테고리별 MAE · 전체 중앙값: {m['imputation']['MAE_by_category']['전체중앙값']}")
-    lines.append(f"- 카테고리별 MAE · 그룹별 중앙값: {m['imputation']['MAE_by_category']['그룹중앙값']}")
-    lines.append("\n## 기술통계와 사분위수\n")
-    lines.append("| 변수 | 평균 | 중앙값 | 표준편차 | Q1(25%) | Q3(75%) |\n|---|---:|---:|---:|---:|---:|")
-    for variable, row in summ.iterrows():
-        lines.append(f"| {variable} | {row['mean']:.3f} | {row['median']:.3f} | {row['std']:.3f} | {row['25%']:.3f} | {row['75%']:.3f} |")
-    price_row = summ.loc["price"]
-    lines.append(f"\n결측 대치 후 가격의 가운데 50%는 {price_row['25%']:,.1f}~{price_row['75%']:,.1f}원이다. "
-                 f"평균 {price_row['mean']:,.1f}원과 중앙값 {price_row['median']:,.1f}원의 차이는 오른쪽 꼬리의 영향을 나타낸다. "
-                 "IQR은 산포를 보여 주며 이상치 판정과 사업적 제외 판단은 별도로 한다.")
-    lines.append("\n## IQR 이상치 플래그 비율\n")
-    for k, v in m["iqr_flag_pct"].items():
-        lines.append(f"- {k}: **{v}%**")
-    lines.append(f"- 실데이터 가격에서 태깅: {m['outliers']['n_flagged']}건 (max {m['outliers']['max_price']:.0f}, p99 {m['outliers']['p99_price']:.0f})")
-    lines.append("\n## 벡터화 성능 (32×32×3 이미지 1200장)\n")
-    v = m["vectorization"]
-    lines.append(f"- 이미지 {len(imgs)}장: 행별 루프(NumPy .mean 호출) {v['loop_s']}s vs 전체 벡터화 {v['vectorized_s']}s → 벡터화 {v['speedup_loop_vs_vec']}배 (1 미만이면 벡터화가 더 느림)")
-    lines.append(f"- 1장당: 순수 Python {v['pure_python_s_per_image']}s · 행 루프 {v['rowloop_s_per_image']}s · 벡터화 {v['vectorized_s_per_image']}s")
-    lines.append(f"- 배율: 순수 Python vs 벡터화 **{v['speedup_pure_vs_vectorized']}배** / vs 행 루프 **{v['speedup_pure_vs_rowloop']}배** (표본 {v['n_pure_sample']}장)")
-    lines.append("\n## 상관\n")
-    lines.append(f"- price vs img_mean: **r={m['correlation']['price__img_mean']}** (피어슨 · 이상치 미처리 · n=1,200)"
-                 f" / price vs rating: r={m['correlation']['price__rating']} (피어슨 · 이상치 미처리 · n=1,200)")
-    lines.append("")
-    lines.append("`img_mean` 은 썸네일 (32,32,3) 배열을 255로 나눈 **RGB 픽셀 평균**이다(0~1). 휘도와 구분하며 클릭률·전환율이 아니다 — "
-                 "이 테이블에는 노출·클릭 컬럼이 **0개**라서 CTR 을 정의할 수 없다(`reports/correlation_variants.csv`).")
-    lines.append("")
-    lines.append("상관 하나만 적으면 결론이 잣대에 의존한다는 사실이 사라진다. 같은 두 변수를 네 잣대로 재면:")
-    lines.append("")
-    lines.append("| 잣대 | r | |")
-    lines.append("|---|---|---|")
-    for k, v in m["correlation_variants"].items():
-        lines.append(f"| {k} | {v} | |")
-    lines.append("")
-    lines.append(f"> {m['correlation_주의']}")
-    scj = REP / "spec_curve_summary.json"
-    if scj.exists():
-        sc = json.loads(scj.read_text(encoding="utf-8"))
-        lines.append("")
-        lines.append(f"방어 가능한 스펙 {sc['n_specs']}개 전수(계수 5종×이상치 3종×스케일 2종×통제 2종) — "
-                     f"`scripts/spec_curve.py`: r **{sc['r_최소']}~{sc['r_최대']}**, 중위 {sc['r_중위']:.3f}, "
-                     f"부호일치 {sc['부호일치율'] * 100:.0f}%, p<0.05 비율 {sc['p_0.05_미만_비율'] * 100:.1f}%. "
-                     f"최소값은 **카테고리를 통제**한 스펙에서 나온다({sc['r_최소']}) → 이미지-가격 관계는 카테고리 경로를 통해 들어온다. "
-                     f"강건 추정 중위값은 pb20 {sc['강건추정치']['pb20_중위']} / skipped {sc['강건추정치']['skipped_중위']}"
-                     f"(skipped 은 최소 {sc['강건추정치']['skipped_생존n_최소']}행만 남긴다). 그림 07, 표 `reports/spec_curve.csv`.")
-    lines.append("\n## RFM 세분화\n")
-    for k, d in m["rfm"]["segments"].items():
-        lines.append(f"- {k}: n={d['n']} · 매출 {d['매출점유율_%']}% · 평균 R {d['평균Recency_일']}일")
-    lines.append(f"- VIP 평균 Recency **{m['rfm']['VIP_평균Recency']}일** vs 비VIP {m['rfm']['비VIP_평균Recency']}일 "
-                 f"(gate 통과: {m['rfm']['gate_VIP_recency_더작음']})")
-    lines.append(f"- 점수를 뒤집지 않으면: 'VIP'로 잡히는 집단의 평균 R **{m['rfm']['역순실수_VIP_평균Recency']}일**, 매출 점유 {m['rfm']['역순실수_매출점유율_%']}%")
-    lines.append("\n## 이미지 참여·전환 분석의 방향 (2026-10-12)\n\n이미지–가격 상관은 보조 EDA다. 사업적 가설은 상품 디테일을 보존한 밝기·대비 개선이 클릭률과 구매 전환에 미치는 영향이다. 현재 데이터에 노출·클릭·세션 로그가 없어 효과를 검증하지 않았다. 필수 이미지 평균·표준편차와 상품명 피처는 유지한다. [선행 연구와 실험 계획](../docs/image-engagement-plan.md).")
-    (REP / "analysis.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    actual_description_missing = int(products["description"].isna().sum())
+    clean = DataAnalyzer(products, txns).handle_missing_values(columns=["description"])
+    m["actual_missing"] = {
+        "description_before": actual_description_missing,
+        "description_after": int(clean["description"].isna().sum()),
+        "price_before": int(products["price"].isna().sum()),
+    }
+    ana = DataAnalyzer(products=clean, transactions=txns, images=images).load_data()
+
+    seed = int(meta["sampling"]["seed"])
+    holdout_mask = products["product_id"].map(lambda value: masked_by_hash(value, seed)).to_numpy()
+    masked = products.copy()
+    heldout_truth = masked.loc[holdout_mask, "price"].copy()
+    masked.loc[holdout_mask, "price"] = np.nan
+    masked_ana = DataAnalyzer(masked, txns)
+    filled_global = masked_ana.handle_missing_values(strategy="median", columns=["price"])
+    filled_group = masked_ana.handle_missing_values(strategy="groupby_median", min_group=30, columns=["price"])
+    error_global = (filled_global.loc[holdout_mask, "price"] - heldout_truth).abs()
+    error_group = (filled_group.loc[holdout_mask, "price"] - heldout_truth).abs()
+    if len(heldout_truth) < 20:
+        raise ValueError(f"price holdout too small: {len(heldout_truth)}")
+    m["imputation"] = {
+        "method": "deterministic 10% holdout of observed real prices; masked only in an evaluation copy",
+        "n_evaluated": int(holdout_mask.sum()),
+        "global_median_MAE": finite_float(error_global.mean()),
+        "groupby_median_MAE": finite_float(error_group.mean()),
+        "group_minus_global_MAE": finite_float(error_group.mean() - error_global.mean()),
+        "min_group": 30,
+        "MAE_by_category": {
+            "global": {str(k): finite_float(v) for k, v in error_global.groupby(products.loc[holdout_mask, "category"]).mean().items()},
+            "group": {str(k): finite_float(v) for k, v in error_group.groupby(products.loc[holdout_mask, "category"]).mean().items()},
+        },
+    }
+
+    outlier_df = ana.detect_outliers("price", k=1.5, policy="flag")
+    q1, q3 = products["price"].quantile([0.25, 0.75])
+    upper = q3 + 1.5 * (q3 - q1)
+    lower = q1 - 1.5 * (q3 - q1)
+    m["outliers"] = {
+        "policy": "flag_only", "k": 1.5, "n_flagged": int(outlier_df["price_is_outlier"].sum()),
+        "price_outlier_pct": ana.log["price_outlier_pct"], "q1": float(q1), "q3": float(q3),
+        "lower_fence": float(lower), "upper_fence": float(upper),
+        "p99_price": float(products["price"].quantile(0.99)), "max_price": float(products["price"].max()),
+    }
+
+    feats = ana.add_multimodal_features()
+    n_pure = min(150, len(images))
+    started = time.perf_counter()
+    for image in images[:n_pure]:
+        total = 0
+        for row in image.tolist():
+            for pixel in row:
+                for channel in pixel:
+                    total += channel
+        _ = total / image.size
+    pure_seconds = (time.perf_counter() - started) / n_pure
+    vector_per = ana.log["img_time_vectorized_s"] / len(images)
+    loop_per = ana.log["img_time_loop_s"] / len(images)
+    m["vectorization"] = {
+        "loop_s": ana.log["img_time_loop_s"], "vectorized_s": ana.log["img_time_vectorized_s"],
+        "speedup_loop_vs_vec": ana.log["img_speedup_loop_vs_vec"],
+        "pure_python_s_per_image": pure_seconds, "vectorized_s_per_image": vector_per,
+        "rowloop_s_per_image": loop_per, "speedup_pure_vs_vectorized": pure_seconds / max(vector_per, 1e-12),
+        "speedup_pure_vs_rowloop": pure_seconds / max(loop_per, 1e-12), "n_pure_sample": n_pure,
+    }
+
+    summary = ana.summarize(feats)
+    summary.to_csv(REP / "summary.csv")
+    corr_columns = ["price", "transaction_count", "customer_count", "word_count", "img_mean", "img_std", "img_saturation"]
+    corr = feats[corr_columns].corr()
+    corr.to_csv(REP / "correlation.csv")
+    pair = feats[["price", "img_mean"]].dropna().copy()
+    clipped = pair["price"].clip(*np.percentile(pair["price"], [1, 99]))
+    centered = pair.copy()
+    categories = feats.loc[pair.index, "category"]
+    centered["price"] = pair["price"] - pair["price"].groupby(categories).transform("mean")
+    centered["img_mean"] = pair["img_mean"] - pair["img_mean"].groupby(categories).transform("mean")
+    variants = pd.DataFrame([
+        {"method": "Pearson", "outlier": "none", "scale": "raw", "control": "none",
+         "r": pair["price"].corr(pair["img_mean"]), "n": len(pair)},
+        {"method": "Pearson", "outlier": "1/99 clip", "scale": "raw", "control": "none",
+         "r": clipped.corr(pair["img_mean"]), "n": len(pair)},
+        {"method": "Pearson", "outlier": "none", "scale": "log(price),log1p(img)", "control": "none",
+         "r": np.log(pair["price"]).corr(np.log1p(pair["img_mean"])), "n": len(pair)},
+        {"method": "Spearman", "outlier": "none", "scale": "ranks", "control": "none",
+         "r": pair["price"].corr(pair["img_mean"], method="spearman"), "n": len(pair)},
+        {"method": "Pearson", "outlier": "none", "scale": "category-centered", "control": "category",
+         "r": centered["price"].corr(centered["img_mean"]), "n": len(pair)},
+    ])
+    if not np.isfinite(variants["r"]).all():
+        raise ValueError("non-finite correlation variant")
+    variants.to_csv(REP / "correlation_variants.csv", index=False)
+    m["correlation"] = {
+        "price__img_mean": finite_float(variants.loc[0, "r"]),
+        "price__transaction_count": finite_float(corr.loc["price", "transaction_count"]),
+        "n_pairs": len(pair),
+        "variants": {f"{row.method}|{row.outlier}|{row.scale}|{row.control}": finite_float(row.r) for row in variants.itertuples()},
+        "caution": ("Observed association in a selected-customer, 15-day mirror subset; not image quality, CTR, conversion, or causality."
+                    if meta["source_kind"] == "github_mirror_tail_window" else
+                    "Observed association in a selected-customer Kaggle-original sample; not image quality, CTR, conversion, or causality."),
+    }
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.8))
+    ax.hist(np.log10(products["price"]), bins=40, color="#4477aa")
+    ax.set_title("Real H&M normalized price distribution")
+    ax.set_xlabel("log10(normalized price)"); ax.set_ylabel("Products")
+    save(fig, "01_hist_price.png")
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.8))
+    ax.boxplot([
+        np.log10(products.loc[~outlier_df["price_is_outlier"], "price"]),
+        np.log10(products["price"]),
+    ], tick_labels=["IQR-flag excluded", "All products"])
+    ax.set_title("IQR flag comparison (rows are not deleted)")
+    ax.set_xlabel("Displayed subset"); ax.set_ylabel("log10(normalized price)")
+    save(fig, "02_box_price_before_after.png")
+
+    category = txns.merge(products[["product_id", "category"]], on="product_id", how="left").groupby("category").agg(
+        sales_value=("amount", "sum"), products=("product_id", "nunique")
+    ).sort_values("sales_value", ascending=False).head(12).sort_values("sales_value")
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(11, 4.6))
+    category["products"].plot.barh(ax=ax, color="#4477aa")
+    ax.set_title("Products by category (top sales-value categories)")
+    ax.set_xlabel("Products"); ax.set_ylabel("Category")
+    category["sales_value"].plot.barh(ax=ax2, color="#aa6644")
+    ax2.set_title("Observed sales-value index by category")
+    ax2.set_xlabel("Sum of normalized amount"); ax2.set_ylabel("Category")
+    save(fig, "03_bar_segment.png")
+
+    fig, ax = plt.subplots(figsize=(7.2, 6.0))
+    image = ax.imshow(corr.values, vmin=-1, vmax=1, cmap="coolwarm")
+    ax.set_xticks(range(len(corr))); ax.set_xticklabels(corr.columns, rotation=90, fontsize=8)
+    ax.set_yticks(range(len(corr))); ax.set_yticklabels(corr.columns, fontsize=8)
+    for i in range(len(corr)):
+        for j in range(len(corr)):
+            ax.text(j, i, f"{corr.values[i,j]:.2f}", ha="center", va="center", fontsize=7)
+    ax.set_title("Pearson correlation matrix — real H&M subset")
+    ax.set_xlabel("Variable"); ax.set_ylabel("Variable")
+    fig.colorbar(image, ax=ax, fraction=.046, label="r")
+    save(fig, "04_heatmap_corr.png")
+
+    fig, ax = plt.subplots(figsize=(6.2, 4.2))
+    ax.scatter(feats["img_mean"], np.log10(feats["price"]), s=10, alpha=.45)
+    ax.set_title(f"Real product image mean vs price (Pearson r={m['correlation']['price__img_mean']:.3f})")
+    ax.set_xlabel("Mean RGB/255 across 32x32 pixels"); ax.set_ylabel("log10(normalized price)")
+    save(fig, "05_scatter_price_vs_imgmean.png")
+
+    daily = txns.groupby(txns["order_date"].dt.date)["amount"].sum()
+    fig, ax = plt.subplots(figsize=(7.2, 3.8))
+    daily.plot(ax=ax, marker="o")
+    source_window_title = "15-day mirror window" if meta["source_kind"] == "github_mirror_tail_window" else "Kaggle-original selected sample"
+    ax.set_title(f"Daily observed sales-value index ({source_window_title})")
+    ax.set_xlabel("Transaction date"); ax.set_ylabel("Sum of normalized amount")
+    ax.tick_params(axis="x", rotation=45)
+    save(fig, "06_line_daily_revenue.png")
+
+    rfm = ana.calculate_rfm(quantiles=5)
+    rfm.to_csv(DATA / "rfm.csv", index=False)  # 고객 식별자 포함: data/는 커밋 금지
+    naive = rfm.copy()
+    naive["R_score"] = 6 - naive["R_score"]
+    naive_combined = naive[["R_score", "F_score", "M_score"]].mean(axis=1)
+    naive_segment_score = tied_quantile_scores(naive_combined, 4)
+    naive["segment"] = pd.Categorical.from_codes(naive_segment_score - 1, categories=SEGMENT_LABELS, ordered=True)
+    vip = rfm[rfm["segment"] == "VIP"]
+    nonvip = rfm[rfm["segment"] != "VIP"]
+    naive_vip = naive[naive["segment"] == "VIP"]
+    if vip.empty or nonvip.empty or naive_vip.empty:
+        raise ValueError("RFM segment missing; cannot run direction check")
+    segments = {}
+    for name, group in rfm.groupby("segment", observed=True):
+        segments[str(name)] = {
+            "n": len(group), "revenue_share_pct": float(group["monetary"].sum() / rfm["monetary"].sum() * 100),
+            "mean_recency_days": float(group["recency"].mean()), "mean_frequency_lines": float(group["frequency"].mean()),
+        }
+    m["rfm"] = {
+        "n_customers": len(rfm), "frequency_definition": "unique source transaction lines; no basket/order ID supplied",
+        "segments": segments, "VIP_n": len(vip),
+        "VIP_revenue_share_pct": float(vip["monetary"].sum() / rfm["monetary"].sum() * 100),
+        "VIP_mean_recency": float(vip["recency"].mean()), "non_VIP_mean_recency": float(nonvip["recency"].mean()),
+        "all_recency_median": float(rfm["recency"].median()),
+        "naive_VIP_mean_recency": float(naive_vip["recency"].mean()),
+        "naive_VIP_revenue_share_pct": float(naive_vip["monetary"].sum() / rfm["monetary"].sum() * 100),
+        "gate_VIP_recency_lower": bool(vip["recency"].mean() < rfm["recency"].median()),
+        "gate_naive_reversal_is_worse": bool(naive_vip["recency"].mean() > vip["recency"].mean()),
+    }
+    aggregate = rfm.groupby("segment", observed=True).agg(
+        customers=("customer_id", "size"), mean_recency_days=("recency", "mean"),
+        mean_frequency_lines=("frequency", "mean"), normalized_monetary_sum=("monetary", "sum"),
+    ).reset_index()
+    aggregate["monetary_share_pct"] = aggregate["normalized_monetary_sum"] / aggregate["normalized_monetary_sum"].sum() * 100
+    aggregate.to_csv(REP / "rfm_segments.csv", index=False)
+
     (REP / "metrics.json").write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+    render_analysis_report()
     print(json.dumps(m, ensure_ascii=False, indent=2))
 
 

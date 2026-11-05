@@ -1,1 +1,5 @@
-"""A1-1 소스 패키지 (설계 기록 docs/07 의 폴더 구조 준수)."""
+"""A1-1 실데이터 분석 패키지."""
+
+from .pipeline import DataAnalyzer
+
+__all__ = ["DataAnalyzer"]

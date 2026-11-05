@@ -1,139 +1,212 @@
-<!-- hand-authored -->
-# A1-1 — 쇼핑몰 단골 찾기 (멀티모달 EDA · RFM 세분화)
+# A1-1 실데이터 실행판 — H&M 멀티모달 EDA + RFM
 
-> 요구사항 8개를 **직접 실행한 결과**로 채운 구현 레포. 모든 수치는 `reports/metrics.json`에 있다
-> (`python scripts/run_analysis.py` 가 생성). 문서·계획·학습 기록은
-> [codyssey-A1-1-studylog](https://github.com/giyeop-cody/codyssey-A1-1-studylog).
+기존 합성 생성기 대신 **실제 공개 H&M 상품 메타데이터·구매 이력·상품 이미지**를 같은 `article_id`로 연결해 실행한 버전이다. 이 디렉터리에는 합성 데이터 생성기가 없으며, 리포트의 모든 수치는 아래 명령으로 실제 계산했다.
 
-> 정책: 원시 데이터(`data/`)만 gitignore 이고 **산출물(`figures/`·`reports/`·`notebooks/`)은 제출물이므로 커밋**한다.
-> 그래서 클론 직후 `pytest` 한 번으로 검증이 돈다(그림·지표가 없을 때만 `data_gen`·`run_analysis` 를 자동 재실행).
+- 상세 실행 리포트: [`reports/analysis.md`](reports/analysis.md)
+- 원본 지표: [`reports/metrics.json`](reports/metrics.json)
+- 60개 분석 선택: [`reports/spec_curve.csv`](reports/spec_curve.csv)
+- 실행 출력이 포함된 노트북: [`notebooks/analysis_report.ipynb`](notebooks/analysis_report.ipynb)
+- 학습 방향·순서·트러블슈팅: [`docs/18-hm-learning-and-troubleshooting.md`](../docs/18-hm-learning-and-troubleshooting.md)
+- 평가 문항별 답과 설명: [`docs/16-concise-evaluation-answers.md`](../docs/16-concise-evaluation-answers.md)
+- 원문 요구사항·제약 대조: [`docs/19-submission-alignment.md`](../docs/19-submission-alignment.md)
 
+## 데이터 출처·버전·이용 조건
 
-<!-- codyssey-links:start -->
-## 🔗 Codyssey 연결
+원본은 Kaggle **H&M Personalized Fashion Recommendations**다. 상품명/설명/카테고리, 고객 ID·거래일·정규화 가격, 실제 상품 이미지가 `article_id`와 `customer_id`로 연결되므로 이 미션의 멀티모달 EDA와 RFM을 한 데이터 체계에서 수행할 수 있다.
 
-| 항목 | 링크 |
+| 항목 | 고정한 실제 입력 |
 |---|---|
-| **과제** | **A1-1** — 쇼핑몰에서 누가 자주 오고 많이 사는지 분석해서 단골 찾기 · 심화(Advanced) 「AI/SW 심화」 · 데이터 분석·EDA · 60h |
-| 미션 원문 (정의서) | [`A1-1/a1-1-description.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/a1-1-description.md) · [`A1-1-mission.jpg`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/a1-1-mission.jpg) · [`meta.json`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/meta.json) |
-| 이 과제 연결 카드 | [`A1-1/links.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/A1-1/links.md) |
-| 전체 연결 대장 | [`LINKS.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/LINKS.md) · 진행 현황 [`PROGRESS.md`](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/PROGRESS.md) · [원문 API URL 41개](https://github.com/giyeop-cody/codyssey-taskmap/blob/main/codyssey-all-urls.md) |
-| 과정 허브 | [codyssey-A-studylog-hub](https://github.com/giyeop-cody/codyssey-A-studylog-hub) `missions/A1-1/` · `repos/A1-1/` 서브모듈 |
-| 통합 레포 | [codyssey](https://github.com/giyeop-cody/codyssey) → `A1-1/`(제출물) · `A1-1-studylog/`(학습기록) 서브모듈 |
-| A→M 연결 | [codyssey-AI-Applied](https://github.com/giyeop-cody/codyssey-AI-Applied) '다음 단계 (M 과정 연결)' |
-| 같은 과제의 다른 레포 | <sub>학습기록(스터디)</sub> [giyeop-cody/codyssey-A1-1-studylog](https://github.com/giyeop-cody/codyssey-A1-1-studylog) 🔒 · <sub>선행/개인</sub> [giyeop-cody/ecommerce-rfm-analysis](https://github.com/giyeop-cody/ecommerce-rfm-analysis) |
+| 원본 | [Kaggle competition](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations) |
+| 원본 이용 규칙 | [Competition Rules](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/rules) — **Non-Commercial Purposes & Academic Research** |
+| 실행에 사용한 접근 가능 미러 | [`Gott-Data/H_and_M_Recommendation_Streamlit`](https://github.com/Gott-Data/H_and_M_Recommendation_Streamlit) |
+| 미러 커밋 | `a3184bf24dbb78c67dd9863dd0aebb93e1b9b462` |
+| 상품 원본 | `articles.csv` 105,542행, SHA-256 `25f21882053517f7684ea43f524225a9481a7bb9aab9cf0abfc7fe8c4576a72b` |
+| 거래 부분집합 | `new_transactions.csv` **531,967행**, 2020-09-08~2020-09-22, 원본 위치 31,256,357~31,788,323 |
+| 거래 SHA-256 | `c0098b8215693aa1bcae386e86e27299b41aa3f7ffada685345e509b7eb3a44e` |
+| 이미지 | 같은 미러의 `images_256_256/{첫 3자리}/{article_id}.jpg`; 선택 상품만 partial clone으로 다운로드한 후 32×32 RGB로 축소 |
 
-> 🔒 = 비공개 레포. 상태·pin 커밋은 연결 카드와 `PROGRESS.md` 에 있다. 이 표는 2026-10-10 기준이며 미션 원문 3종은 원본 데이터라 진행 상태를 쓰지 않는다.
-<!-- codyssey-links:end -->
+미러 자체에 별도 데이터 라이선스가 있는 것은 아니며 **원본 Kaggle 조건이 우선한다**. 원본 규칙의 재배포 제한을 존중해 `data/`의 원본 CSV, 이미지, `images.npy`, 이미지 해시 manifest, 고객별 `rfm.csv`는 Git에 올리지 않는다. 커밋하는 것은 코드와 집계 리포트·그림뿐이다. 다른 사람과 원본을 공유하기 위한 용도가 아니라 교육용 분석 재현을 위한 스크립트다.
+
+### 가격 단위 — 원화로 바꾸지 않음
+
+H&M `price`는 실제 통화가 공개되지 않은 정규화/스케일 값이다. 따라서 `amount`도 원화 매출이 아니라 **상대 매출지표**다. 임의 환율이나 100,000배 보정은 하지 않는다. `frequency`는 원본에 주문/바구니 ID가 없어 **고유 거래행 수**로 정의한다.
+
+## 재현 가능한 표본과 실제 실행 결과
+
+선택 규칙은 `SHA-256("20261105:{customer_id}")` 오름차순으로 고객 1,000명을 고르고, 그 고객의 원본 기간 내 모든 거래를 유지하는 것이다. 이후 실제 이미지가 있는 상품만 남겼다. 임의 행 추출과 달리 고객의 단기 이력이 통째로 보존된다.
+
+| 항목 | 실행 결과 |
+|---|---:|
+| 선택 전 거래/상품 | 3,912행 / 2,300개 |
+| 이미지 부재로 제외 | 18행 / 5개 상품 |
+| 최종 상품·실제 이미지 | **2,295개·2,295장** |
+| 최종 거래행 | **3,894건** |
+| 최종 고객 | **998명** |
+| 관찰 기간 | 2020-09-08~2020-09-22 |
+| 상품 스키마 | 16컬럼·CSV dtype 3종 |
+| 실제 설명 결측 | 3건 → `unknown` 처리 후 0건 |
+| 실제 가격 결측 | **0건** |
+
+상품 `price`는 선택 고객 표본 안의 `article_id`별 실거래 중앙값이다. 전체 3,178만 거래의 가격으로 일반화하지 않는다.
+
+### 1. 실제 가격 홀드아웃 결측 대치
+
+실제 가격에는 결측이 없으므로 가짜 결측을 메인 데이터에 심지 않았다. 대신 실제 관측 가격의 결정론적 10%(253건)를 **평가용 사본에서만** 가리고, 남은 실제 가격으로 대치한 후 원래 값과 비교했다.
+
+| 대치법 | MAE(정규화 가격) |
+|---|---:|
+| 전체 중앙값 | 0.0189615127 |
+| 카테고리별 중앙값·소그룹 fallback | **0.0179413479** |
+
+### 2. 실제 기술통계·IQR·이미지·상관
+
+- 가격 평균은 **0.034700**, 중앙값은 **0.030492**, Q1/Q3는 **0.016932/0.042356**다. 평균이 중앙값보다 커 오른쪽 꼬리가 있으므로 평균만으로 대표 가격을 말하지 않는다.
+- 상품별 거래행 수는 평균 **1.697행**, 중앙값 **1행**, Q3 **2행**이다. 거래가 적은 상품이 많으므로 가격과 상관을 읽을 때 `transaction_count`를 함께 확인한다.
+- IQR(k=1.5) 플래그: **113건(4.92%)**. 삭제하지 않고 플래그만 남긴다.
+- 실제 `(2295,32,32,3) uint8` 이미지에서 RGB/255 평균·표준편차·채도 범위를 계산했다. 가격에 맞춰 밝기를 조정하지 않았다.
+- NumPy 전체 벡터화와 이미지별 루프의 결과는 `allclose`로 일치 확인했다. 최종 실행 환경에서는 전체 벡터화 0.053013초, 이미지별 NumPy 루프 0.018733초였다. 순수 Python 150장 표본의 1장당 시간은 0.00037069초였다. 시간은 하드웨어 의존 값이다.
+- 실제 가격–이미지 평균 Pearson 원본 상관: **r=-0.1576**(n=2,295). 합성 결과의 양수 상관을 재사용하지 않았다.
+- 두 번째 쌍인 가격–상품별 거래행 수 Pearson 상관은 **r=0.0260**(n=2,295)으로 0에 가깝다. 이 선택 표본에서는 가격과 거래량의 선형 관계가 약하며, 가격만으로 판매량을 예측하거나 가격 변경의 인과효과를 주장하지 않는다.
+
+| 잣대 | r |
+|---|---:|
+| Pearson 원본 | -0.1576 |
+| Pearson 1·99 클리핑 | -0.1782 |
+| Pearson log(price)·log1p(img) | -0.2015 |
+| Spearman 순위 | -0.2322 |
+| Pearson 카테고리 내 중심화 | -0.0952 |
+
+60개 스펙(계수 5종×이상치 3종×스케일 2종×카테고리 통제 2종)에서는 **r=-0.2805~-0.0679**, 중위 **-0.1374**였다. 이는 이 표본에서 측정한 밝기–가격 관측 관계일 뿐, 이미지 품질·CTR·구매 전환·인과효과가 아니다.
+
+### 3. 실제 단기 RFM
+
+기준일은 2020-09-23이다. R만 역전하고, 짧은 기간의 정수 빈도 동률을 `qcut`으로 억지로 나누지 않고 평균순위 기반 점수를 사용했다.
+
+| 세그먼트 | 고객 | 매출지표 점유 | 평균 Recency | 평균 거래행 |
+|---|---:|---:|---:|---:|
+| 대체고객 | 277 | 7.8% | 11.02일 | 1.36 |
+| 성장고객 | 208 | 9.5% | 7.66일 | 2.01 |
+| 우수고객 | 279 | 26.4% | 7.58일 | 3.85 |
+| VIP | 234 | **56.3%** | **4.62일** | 8.65 |
+
+비VIP 평균 Recency는 8.85일, 전체 중앙값은 8일이다. R을 역전하지 않은 실패 모드의 VIP 평균은 10.09일로 나빠지는 것도 함께 검사했다.
+
+## 비즈니스 인사이트 — 근거 → 실행 → 검증
+
+1. **단기 VIP를 캠페인 후보로만 사용하고, 실제 발송 전 긴 이력으로 다시 계산한다.**
+   - 근거: VIP 234명이 정규화 매출지표의 56.3%를 차지하고 평균 Recency는 4.62일로 비VIP 8.85일보다 짧다.
+   - 실행: **대상 세그먼트는 VIP 234명**이다. 최소 6~12개월 실제 이력으로 RFM을 다시 계산한 뒤 재구매 캠페인 대상을 시뮬레이션한다. **기대 효과는 재구매율·유지율 개선 여부를 확인하는 것**이며 효과를 미리 단정하지 않는다.
+   - 검증: 사전 정한 대조군과 이후 재구매율·유지율·1인당 매출을 비교하고, 차이가 없으면 VIP 캠페인 가설을 반증된 것으로 본다. 15일 단면의 관측값을 캠페인 효과로 주장하지 않는다.
+2. **텍스트 결측과 가격 결측을 분리한 품질 게이트를 둔다.**
+   - 근거: 실제 설명 결측 3건이 있었고, 실제 가격 홀드아웃에서 카테고리별 중앙값 MAE가 전체 중앙값보다 0.0010201648 낮았다.
+   - 실행: **대상 세그먼트는 VIP·우수·성장·대체고객 전체의 상품 탐색에 필요한 설명·가격 누락 레코드**다. 설명은 `unknown`으로 표시하고, 가격은 카테고리별 중앙값과 30건 미만 그룹의 전체 중앙값 fallback을 적용한다. **기대 효과는 결측으로 인한 분석 제외와 대치 오차 감소**다.
+   - 검증: 추가로 확보한 실제 가격을 같은 해시 규칙으로 홀드아웃해 MAE를 다시 잰다. 그룹 대치가 전체 중앙값보다 악화되면 현재 선택이 반증되므로 전체 중앙값으로 되돌린다.
+3. **이미지 피처는 가격 결론이 아니라 참여 실험의 입력으로 제한한다.**
+   - 근거: 실제 Pearson 원본 r=-0.1576이며, 노출·클릭·세션 로그는 없다.
+   - 실행: **대상 세그먼트는 VIP·우수고객 513명**이다. 이들에게 동일 상품의 원본/보정 이미지를 가격과 노출 위치가 같은 조건에서 무작위 배정하는 별도 실험을 설계한다. **기대 효과는 CTR·구매 전환 개선 여부를 검증하는 것**이다.
+   - 검증: 추가로 노출·클릭·세션·구매와 무작위 배정 로그를 수집해 CTR과 구매 전환을 나누어 비교한다. 대조 차이가 없으면 이미지 가설은 반증되며, 현재 상관이나 선행연구 수치를 실험 효과로 인용하지 않는다.
 
 ## 실행
 
+고정 미러 재현에는 Python 3.11과 Git, GitHub CLI(`gh`)가 필요하다. 가장 짧은 전체 실행은 다음이다.
+
 ```bash
+cd mission
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-python src/data_gen.py --n-products 1200 --n-txns 30000 --seed 42   # data/ 생성(csv 는 gitignore)
-python scripts/run_analysis.py                                       # figures/ 6종 + reports/
-jupyter nbconvert --execute --to notebook --inplace notebooks/analysis_report.ipynb
-python scripts/check_requirements.py                                 # ALL PASS 제출 게이트
+python scripts/run_all.py --download-mirror
 ```
 
-## 데이터 (`src/data_gen.py` 가 만드는 합성 데이터)
+단계별로 확인하려면:
 
-| 테이블 | 크기 | 컬럼 |
+```bash
+python scripts/prepare_hm_data.py --download-mirror --n-customers 1000 --seed 20261105
+python scripts/run_analysis.py
+python scripts/spec_curve.py
+python scripts/build_notebook.py
+python scripts/check_requirements.py
+pytest -q
+```
+
+`prepare`는 고정 커밋과 CSV SHA-256을 확인하고, 이미지는 선택된 파일만 lazy-fetch한다. 같은 입력·고객 수·seed면 상품/거래/이미지 순서와 내용이 재현된다. 빈 디렉터리에서 독립 재실행해 4개 파생 파일의 해시가 일치함을 확인한 기록은 [`reports/data_reproducibility.json`](reports/data_reproducibility.json)에 있다. 성능 시간만 실행 환경에 따라 달라진다.
+
+## Kaggle 전체 원본으로 재현
+
+고정 미러는 **커밋된 15일 결과의 재현 경로**, Kaggle 원본은 **사용자가 직접 인증·규칙 동의 후 전체 원본을 받는 별도 경로**다. 원본 전체는 관찰 기간과 모집단이 달라지므로 상품·고객·상관·RFM 수치가 현재 리포트와 달라지는 것이 정상이다.
+
+| 경로 | 입력 | 현재 저장소에서 확인한 범위 |
 |---|---|---|
-| `data/products.csv` | 1,200행 · 9컬럼 · 타입 3종(int64/float64/object+datetime) | product_id, name, category, price, rating, stock, image_path, description, created_at |
-| `data/transactions.csv` | 30,000행 · 6컬럼 | txn_id, product_id, customer_id, quantity, amount, txn_date |
-| `data/images.npy` | (1200, 32, 32, 3) uint8 | 썸네일(밝기·채도를 가격과 약하게 tying) |
-| `data/_groundtruth_price.csv` | 1,200행 | **검증 전용** 정답가. `DataAnalyzer`는 읽지 않는다(README §검증) |
+| `--download-mirror` | 고정 커밋의 실제 원본 부분집합·256px 미러 이미지 | 빈 디렉터리 독립 준비, 파생 해시 일치, 전체 분석·테스트 실행 |
+| `--download-original` | 사용자 Kaggle CLI로 받은 전체 CSV·원본 이미지 | 다운로드 명령 생성·mock CLI·zip 안전성·manifest 테스트만 실행; **실제 Kaggle 다운로드 미실행** |
 
-의도적 오염: 가격 결측 3.0%(36행) · 평점 결측 5.0% · 가격 상방 로그정상 이상치 2%.
+### 사전 준비
 
-## 실측 결과
+1. Kaggle 계정으로 competition 페이지에서 **사용자 본인이 규칙에 동의**한다.
+2. `requirements-original.txt`를 설치한다. 브라우저 OAuth를 지원하는 **Kaggle CLI 2.2.5 이상**을 요구하며, 현재 2.2.5의 `auth login --help`와 `competitions download --help`를 확인했다.
+3. 다운로더가 다운로드 직전에 **`kaggle auth login --force`**를 자동 실행한다. 표시되는 브라우저에서 Kaggle에 로그인하고 접근을 승인하면 된다. `--force`는 기존 로그인이 있을 때 CLI가 종료 코드 1로 멈추는 동작을 피하고 OAuth 로그인을 다시 확인하기 위한 것이다.
+4. API 토큰 발급·복사·환경변수 설정은 사용하지 않는다. 스크립트는 토큰용 환경변수를 subprocess에서 제거하고, 토큰 값을 사용하거나 인증 값을 출력하지 않는다. 인증은 공식 CLI의 브라우저 OAuth에 맡긴다.
+5. 전체 bundle은 약 **34.56GB**다. zip+압축 해제 공간을 위해 **80GB 이상 여유 디스크**를 권장한다. 전체 거래 CSV를 Pandas로 읽으므로 충분한 RAM도 필요하며, 대규모 원본 실행 시간과 메모리는 이 환경에서 실측하지 않았다.
 
-**1. 결측치: 왜 "카테고리별 중앙값"인가** — 정답지 대비 절대오차(MAE, 36행)
+```bash
+cd mission
+source .venv/bin/activate
+pip install -r requirements-original.txt
+# 별도 토큰 설정이나 선행 로그인 명령 없이 아래 다운로드 명령을 실행한다.
+# 다운로더가 브라우저 OAuth 로그인을 먼저 연다.
+```
 
-| 대치법 | MAE | electronics | book |
-|---|---|---|---|
-| 전체 중앙값 | **88,566.7** | 444,366.7 | 19,030.0 |
-| 카테고리별 중앙값 | **32,544.4** (2.7배 개선) | 136,816.7 | 4,100.0 |
+### 전체 멀티모달 파이프라인을 한 번에 실행
 
-카테고리 간 가격 스케일이 30배 벌어져 있어(book 1.4만 / electronics 42만) 전체 중앙값은 전자기기를
-'싼 책'으로 만든다. **교정(clip)이 아니라 그룹화가 이기는 지점**이다.
+```bash
+python scripts/run_all.py --download-original --n-customers 1000 --seed 20261105
+```
 
-**2. IQR 이상치는 "이상한 분포"의 함수다** — 같은 규칙(k=1.5)의 플래그 비율
+이 명령은 `data/_kaggle/`에 전체 competition bundle을 받고, CSV·이미지를 압축 해제한 뒤 준비→분석→60스펙→노트북→요구 검사→pytest까지 실행한다. 다운로드한 CSV 3종의 SHA-256과 이미지 수는 `data/_kaggle/kaggle_original_manifest.json`에 기록한다. 준비 스크립트는 CSV 해시를 다시 대조한다.
 
-| 분포 | 플래그 |
-|---|---|
-| 정규(0,1) 5,000표본 | 0.54% |
-| 로그정상 5,000표본 | 7.16% |
-| 이 데이터의 가격 | **20.67%**(248행, 최대 57,850,811 vs p99 1,581,064) |
+### 다운로드와 분석을 단계별로 실행
 
-가격의 1/5이상이 '이상치'로 태깅된다 → `drop`은 데이터 손실이고 `flag`를 기본값으로 두었다(설계 결정).
+```bash
+python scripts/fetch_kaggle_original.py \
+  --out data/_kaggle --include-images --test-zip
 
-**3. "벡터화하면 n배 빠르다"는 비교 대상을 잃으면 거짓이 된다** — 이미지 1,200장의 평균/표준편차
+python scripts/prepare_hm_data.py \
+  --source-dir data/_kaggle \
+  --image-dir data/_kaggle/images \
+  --n-customers 1000 --seed 20261105
 
-| 경로 | 1장당 | 배율(벡터화 대비) |
-|---|---|---|
-| 전체 벡터화(`arr.mean(axis=(1,2,3))`, float64 변환 포함) | 1.8e-05 s | 1.0 |
-| 행 루프(이미지마다 `.mean()` 호출) | 5.0e-06 s | **벡터화가 0.26배 = 더 느림** |
-| 순수 Python(NumPy 집계 없이 리스트 순환, 표본 150장) | 1.9e-04 s | 10.8배 |
+python scripts/run_analysis.py
+python scripts/spec_curve.py
+python scripts/build_notebook.py
+python scripts/check_requirements.py
+pytest -q
+```
 
-작은 배열 1,200개는 **벡터화보다 행 루프가 빠르다**(39M짜리 float64 중간 배열을 만들기 때문).
-배열 크기가 커져야 벡터화가 이긴다. 그래서 리포트 문장은 "벡터화 100배" 대신
-**"경로별 1장당 시간"**으로 쓴다.
+`--test-zip`은 대용량에서 CRC 검사 시간이 추가된다. 기본은 압축 해제 후 zip을 삭제하며, 보존하려면 `--keep-zip`을 사용한다. 중단 후 기존 CSV와 이미지가 있으면 재사용하고, 강제 재다운로드는 `--force`다. zip-slip 경로 검사와 CSV 누락·이미지 수 검사를 우회하지 않는다.
 
-**4. 상관** — price vs img_mean **r=0.119**(피어슨 · 이상치 미처리 · n=1,200), price vs rating r=0.033(피어슨 · 동일).
-같은 데이터에서 클리핑 후 0.5245 · 스피어만 0.6477 이 나오므로 "밝기로 가격을 설명 못 한다"는 **한 잣대의 결과**다(→ `reports/correlation_variants.csv`, `docs` 아님: 이 레포 §인사이트 3).
+CSV 3종만 먼저 받으려면 `--include-images` 없이 실행한다.
 
-**5. RFM 세분화** (기준일 = 마지막 거래 + 1일, 5분위, R만 역전)
+```bash
+python scripts/fetch_kaggle_original.py --out data/_kaggle
+```
 
-| 세그먼트 | 고객 | 매출 점유 | 평균 Recency |
-|---|---|---|---|
-| VIP | 254 (21.3%) | **55.7%** | **4.9일** |
-| 우수고객 | 314 | 27.6% | 11.3일 |
-| 성장고객 | 277 | 12.4% | 22.6일 |
-| 대체고객 | 345 | 4.3% | 68.3일 |
+이 경우 원본 거래/고객/상품 구조는 확보하지만 **이미지가 없어 본 멀티모달 파이프라인은 완료할 수 없다**. 같은 전체 분석을 재현하려면 `--include-images`가 필요하다. 이미 사용자가 다운로드한 원본이 있다면 다운로더를 실행하지 않고 `--source-dir /path/to/hm --image-dir /path/to/hm/images`로 준비할 수 있다.
 
-R 점수를 뒤집지 않는 실수를 재현해 보면: 'VIP'로 잡히는 집단의 평균 Recency **95.9일**, 매출 점유 **7.9%**
-— 즉 **가장 오래된 고객**을 VIP로 부게 된다. 게이트(`VIP 평균 R < 전체 중앙값`)가 이 실수를 잡는다.
+> **검증 상태를 구분한다.** 현재 실행 환경은 Kaggle 직접 네트워크가 허용되지 않아 원본 다운로드를 실행하지 않았다. `fetch_kaggle_original.py`의 `--help`와 OAuth 로그인 명령·토큰 환경변수 제거·다운로드 순서·zip·manifest에 대한 mock/단위 테스트는 실행했지만, 이를 실제 원본 다운로드나 전체 원본 분석 성공으로 표현하지 않는다.
 
-## 비즈니스 인사이트 (근거 → 실행 → 검증)
+## 검증과 산출물
 
-1. **매출의 55.7%가 고객 21.3%에서 나온다.**
-   - 근거: `reports/rfm.csv` 세그먼트 표(254명 / 30,000거래 집계).
-   - 실행: VIP에게 월 1회 '재구매 기간'(중앙값 4.9일) 기반 리마인드, 나머지 세그먼트는 분기 캠페인으로 축소.
-   - 검증: 4주 후 세그먼트별 1인당 매출·재구매율. VIP 유지율이 오르지 않으면 캠페인을 중단한다.
-2. **가격 결측은 카테고리 없이 처리하면 2.7배 틀린다.**
-   - 근거: 위 MAE 표(36행, 정답지 대비).
-   - 실행: 상품 등록 파이프라인에 `category` 필수 + 카테고리별 중앙값 대치(`min_group=30` 미만은 전체 중앙값으로 폴백).
-   - 검증: 새 결측 200건에 대해 두 대치법의 MAE를 다시 재고, 개선이 1.5배 미만이면 그룹정의를 손본다.
-3. **이미지 피처는 가격 추정의 근거보다 클릭·구매 실험의 입력으로 활용한다.**
-   - 근거: 필수 `img_mean`, `img_std`, 상품명 `name_word_count`, `name_length`가 구현되어 있다. 라쿠텐 [ICIP 2018 연구](https://bjornstenger.github.io/papers/chae_icip2018.pdf)는 밝기·대비·선명도 등을 함께 보정한 이미지의 A/B 테스트에서 평균 CTR 상대 증가 15.7%를 보고했다. 밝기 단독 효과나 구매 전환 개선의 증거는 아니다.
-   - 실행: 동일 상품의 원본/보정 이미지를 같은 가격·노출 위치에서 무작위로 비교한다. 필수 피처를 유지하고 휘도·상품 영역 밝기·과노출 후보 비율을 추가로 분석하는 계획을 세운다. 흰 배경과 과노출에 의한 디테일 손실은 구분한다.
-   - 검증: 이미지 버전별 노출·클릭·세션·구매를 수집해 CTR와 구매 전환율을 별도로 평가한다. 현재 합성 데이터에는 해당 로그가 없어 효과는 미검증이다. 표본수는 기준율과 최소 검출 효과 등에 따라 사전 산정한다. [상세 실험 계획](docs/image-engagement-plan.md).
+- data-free GitHub 클론에서 `python mission/scripts/run_all.py --download-mirror`를 실제 실행해 데이터 준비부터 **73/73 검사·28개 테스트**까지 완료했다. 실행 시간을 제외한 분석 지표가 커밋된 결과와 동일했다. 이는 아래 Kaggle 원본 OAuth 다운로드 검증과 별개다.
+- `tests/`: 날짜·결측·IQR·이미지 축·동률 RFM·실데이터 provenance·60스펙·원본 미추적 검사와 Kaggle OAuth·다운로드·run_all mock 테스트, 총 **28개**
+- `scripts/check_requirements.py`: 실제 데이터/산출물에 대한 자동 요구 검사 **73/73 PASS**, 기계 판독 결과는 `reports/requirements_check.json`
+- `reports/analysis.md`: 위 수치를 코드가 생성한 상세 리포트
+- `figures/01_hist_price.png`~`07_spec_curve.png`: 필수 6종과 스펙 커브
+- `reports/rfm_segments.csv`: 고객 ID가 없는 집계만 저장
 
-### 보조 EDA: 이미지–가격 상관의 분석 선택 의존성
+## 한계
 
-스펙 커브 60개(계수 5종 × 이상치 3종 × 스케일 2종 × 카테고리 통제 2종)의 r 범위는 **0.011 ~ 0.6672**, 중위 **0.339**다. 이 결과는 합성 데이터의 분석 선택 민감도를 보여준다. CTR·구매 전환을 측정한 결과가 아니며 이미지 실험을 진행하거나 중단할 근거로 사용하지 않는다.
-
-## 검증 · 테스트 (이 레포가 스스로를 검사하는 방법)
-
-- `python scripts/check_requirements.py` → **요구 8항목 + 6그림 + 노트북 실행 결과 + 재현성(시드)** 을 검사.
-- **실제로 잡았던 자기 실수 2건**: ① 정답지 비교를 positional index로 해 MAE가 **0.0**으로 나왔다(검증 자체가 무효).
-  ② `save()`의 축 레이블 검사가 colorbar 축에서 걸렸다(검사 기준이 틀림 → 첫 axes만 제목 요구로 수정).
-- `DataAnalyzer`는 사본을 반환한다 → 노트북을 처음부터 끝까지 재실행해도 원본이 안 변한다.
-
-## 한계 (합성 데이터라서)
-
-- 카테고리 간 가격 스케일 30배는 **내가 설계한** 값이다. 실데이터에서 groupby 개선 배율은 이보다 작을 수 있다.
-- 이미지·가격 상관을 일부러 약하게 tying 했다(피어슨 원본 r≈0.12, 생성 원본 대비 0.5921). "이미지 품질로 가격을 맞힌다"는 주장과는 무관하다 — 여기 0.12 는 **관측가격 기준 감쇠값**이다.
-- 고객 거래수 분포를 처음엔 zipf(1.6)으로 만들어 VIP 137명이 매출의 98.2%를 차지했다 → 세분화가 무의미해서
-  lognormal(0, 0.9)으로 바꿨다. **현상: 데이터 생성기도 검증이 필요하다.**
-
-
-## 평가 항목 대조 후 개선 (2026-10-11)
-
-구현 보완과 재실행 결과는 [개선 기록](docs/evaluation-improvements.md)에 정리한다. 과제 문항별 답변과 검증 범위를 함께 표시하며, 관측 한계를 성공 수치로 바꾸지 않는다.
-
-## 2026-10-11 원문 재검증
-
-[독립 재검증 기록](docs/independent-reverification.md). 미검증/원문 충돌이 남아 전체 충족 판정과 커밋·푸시는 보류했다.
+1. 미러 거래는 전체 원본의 마지막 15일 부분집합이다. 장기 충성도·계절성·진짜 VIP를 확정하지 못한다.
+2. 선택 고객 표본 내 가격 중앙값이며 상품당 거래 수가 적은 상품도 있다. `transaction_count`를 함께 읽어야 한다.
+3. 이미지는 미러가 256×256으로 축소한 실제 사진이며 이 코드가 32×32로 다시 축소했다. 원본 해상도의 선명도·질감 평가는 불가능하다.
+4. 반품·주문 ID·재고·평점·노출·클릭·세션이 없다. RFM의 F는 바구니 빈도가 아니며 CTR/CVR은 계산하지 않는다.
+5. 공개 미러 파일의 SHA-256과 원본 행 위치를 고정했지만, 현재 커밋 수치를 Kaggle 전체 원본과 독립 대조하거나 전체 원본을 새로 다운로드해 계산한 것은 아니다. source kind는 `github_mirror_tail_window`로 기록한다. 원본 다운로더와 `--download-original` 경로는 제공하지만 실제 Kaggle 실행은 사용자 로컬에서 별도 검증이 필요하다.
