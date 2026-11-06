@@ -1,0 +1,9 @@
+voice_id,source,kind,shard,consent,audio
+syn-low-speech,합성 LOW (speech),speech,synthetic/syn-low-speech,synthetic,syn-low-speech.wav
+syn-mid-speech,합성 MID (speech),speech,synthetic/syn-mid-speech,synthetic,syn-mid-speech.wav
+syn-high-speech,합성 HIGH (speech),speech,synthetic/syn-high-speech,synthetic,syn-high-speech.wav
+syn-airy-speech,합성 AIRY (speech),speech,synthetic/syn-airy-speech,synthetic,syn-airy-speech.wav
+syn-low-song,합성 LOW (song),song,synthetic/syn-low-song,synthetic,syn-low-song.wav
+syn-mid-song,합성 MID (song),song,synthetic/syn-mid-song,synthetic,syn-mid-song.wav
+syn-high-song,합성 HIGH (song),song,synthetic/syn-high-song,synthetic,syn-high-song.wav
+syn-whisper-song,합성 WHISPER (song),song,synthetic/syn-whisper-song,synthetic,syn-whisper-song.wav

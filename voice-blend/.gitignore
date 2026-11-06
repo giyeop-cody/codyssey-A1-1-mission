@@ -1,0 +1,15 @@
+# 원본 음성/학습 산출물은 절대 올리지 않는다(권리·용량)
+data/raw/
+data/_kaggle/
+renders/
+models/
+logs/
+*.wav
+*.mp3
+*.flac
+*.pth
+*.index
+# 데모 산출물(재생성 가능): 리포트만 커밋
+artifacts/**/audio/
+__pycache__/
+.pytest_cache/

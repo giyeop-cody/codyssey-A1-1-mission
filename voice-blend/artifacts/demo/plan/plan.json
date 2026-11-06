@@ -1,0 +1,880 @@
+{
+  "version": 1,
+  "seed": "voice-blend-v1",
+  "features": [
+    "f0_center_st",
+    "f0_range_st",
+    "f0_vibrato_hz",
+    "brightness",
+    "roughness",
+    "attack",
+    "nasality",
+    "breathiness",
+    "expressiveness"
+  ],
+  "standardizer": {
+    "center": [
+      7.10807313,
+      7.87027139,
+      5.40187226,
+      0.72673461,
+      0.37486257,
+      0.63979715,
+      -13.43293635,
+      0.64645767,
+      15.79662116
+    ],
+    "scale": [
+      4.6444566,
+      3.81849518,
+      1.16415028,
+      0.08793982,
+      0.08416073,
+      0.03312188,
+      3.11924953,
+      0.08714793,
+      0.9867762
+    ],
+    "features": [
+      "f0_center_st",
+      "f0_range_st",
+      "f0_vibrato_hz",
+      "brightness",
+      "roughness",
+      "attack",
+      "nasality",
+      "breathiness",
+      "expressiveness"
+    ]
+  },
+  "clusters": {
+    "k": 3,
+    "silhouette": 0.3301,
+    "assignment": {
+      "syn-low-speech": 0,
+      "syn-mid-speech": 1,
+      "syn-high-speech": 1,
+      "syn-airy-speech": 2,
+      "syn-low-song": 0,
+      "syn-mid-song": 0,
+      "syn-high-song": 1,
+      "syn-whisper-song": 2
+    },
+    "score_table": [
+      {
+        "k": 1,
+        "silhouette": null,
+        "min_size": 8,
+        "rejected": null
+      },
+      {
+        "k": 2,
+        "silhouette": 0.2482,
+        "min_size": 3,
+        "rejected": null
+      },
+      {
+        "k": 3,
+        "silhouette": 0.3301,
+        "min_size": 2,
+        "rejected": null
+      },
+      {
+        "k": 4,
+        "silhouette": 0.3021,
+        "min_size": 1,
+        "rejected": null
+      },
+      {
+        "k": 5,
+        "silhouette": 0.2723,
+        "min_size": 1,
+        "rejected": null
+      },
+      {
+        "k": 6,
+        "silhouette": 0.2113,
+        "min_size": 1,
+        "rejected": null
+      }
+    ]
+  },
+  "pairs": [
+    {
+      "speech": "syn-airy-speech",
+      "song": "syn-whisper-song",
+      "distance": 1.2956,
+      "close_axes": [
+        "f0_center_st",
+        "brightness",
+        "roughness"
+      ]
+    },
+    {
+      "speech": "syn-low-speech",
+      "song": "syn-low-song",
+      "distance": 2.4104,
+      "close_axes": [
+        "roughness",
+        "breathiness"
+      ]
+    },
+    {
+      "speech": "syn-mid-speech",
+      "song": "syn-mid-song",
+      "distance": 2.8827,
+      "close_axes": [
+        "f0_center_st",
+        "roughness",
+        "breathiness"
+      ]
+    },
+    {
+      "speech": "syn-high-speech",
+      "song": "syn-high-song",
+      "distance": 3.7553,
+      "close_axes": [
+        "breathiness"
+      ]
+    }
+  ],
+  "blends": [
+    {
+      "recipe_id": "blend-01-9459e4",
+      "name": "번지는 음색 #1 (syn-whisper-song 중심)",
+      "voice_ids": [
+        "syn-airy-speech",
+        "syn-whisper-song",
+        "syn-low-speech"
+      ],
+      "final_weights": {
+        "syn-airy-speech": 0.3333333333,
+        "syn-whisper-song": 0.5,
+        "syn-low-speech": 0.1666666667
+      },
+      "steps": [
+        {
+          "pool": [
+            "syn-airy-speech",
+            "syn-whisper-song",
+            "syn-low-speech"
+          ],
+          "pool_source": "같은 군집 우선 + 전체 보충"
+        },
+        {
+          "step": 1,
+          "kind": "seed",
+          "items": [
+            "syn-whisper-song",
+            "syn-low-speech"
+          ],
+          "weights": [
+            0.75,
+            0.25
+          ]
+        },
+        {
+          "step": 2,
+          "kind": "chain",
+          "adds": [
+            "syn-airy-speech"
+          ],
+          "items": [
+            "syn-airy-speech",
+            "carry"
+          ],
+          "weights": [
+            0.3333333333,
+            0.6666666667
+          ]
+        }
+      ],
+      "tree": {
+        "label": "step2",
+        "weights": [
+          0.3333333333,
+          0.6666666667
+        ],
+        "children": [
+          {
+            "leaf": "syn-airy-speech"
+          },
+          {
+            "label": "seed",
+            "weights": [
+              0.75,
+              0.25
+            ],
+            "children": [
+              {
+                "leaf": "syn-whisper-song"
+              },
+              {
+                "leaf": "syn-low-speech"
+              }
+            ]
+          }
+        ]
+      },
+      "cluster": 2,
+      "predicted_features": {
+        "f0_center_st": 7.095414,
+        "f0_range_st": 7.857336,
+        "f0_vibrato_hz": 4.187495,
+        "brightness": 0.750618,
+        "roughness": 0.465811,
+        "attack": 0.568749,
+        "nasality": -16.140835,
+        "breathiness": 0.648296,
+        "expressiveness": 16.004413
+      },
+      "gate": {
+        "passed": true,
+        "reason": "",
+        "warnings": [],
+        "checks": [
+          {
+            "check": "중복 없는 원본",
+            "ok": true,
+            "detail": "3개 원본 사용"
+          },
+          {
+            "check": "원본 개수 상한",
+            "ok": true,
+            "detail": "3 ≤ 6"
+          },
+          {
+            "check": "최대 지분",
+            "ok": true,
+            "detail": "최대 0.500 ≤ 0.62"
+          },
+          {
+            "check": "최소 지분",
+            "ok": true,
+            "detail": "최소 0.167 ≥ 0.03"
+          },
+          {
+            "check": "사실상 단일 음성 아님",
+            "ok": true,
+            "detail": "최대 0.500 < 0.95"
+          },
+          {
+            "check": "유사 음성쌍 없음",
+            "ok": true,
+            "detail": "통과"
+          },
+          {
+            "check": "최소 거리",
+            "ok": true,
+            "detail": "기준 0.25"
+          },
+          {
+            "check": "음색 다양성",
+            "ok": true,
+            "detail": "최대 상관 0.929 (syn-airy-speech~syn-whisper-song)"
+          }
+        ]
+      },
+      "songs": [
+        {
+          "id": "S02",
+          "text": "[Chorus] 다시 봄이 오면 / 너의 자리에 서 있을게",
+          "seconds": 38,
+          "bpm": 92,
+          "kind": "song",
+          "render_id": "song-01-S02"
+        },
+        {
+          "id": "S05",
+          "text": "[Chorus] 우리는 여기까지 / 하지만 노래는 남아",
+          "seconds": 40,
+          "bpm": 96,
+          "kind": "song",
+          "render_id": "song-02-S05"
+        },
+        {
+          "id": "S01",
+          "text": "[Verse] 새벽 세 시의 골목 / 네 이름을 부르다",
+          "seconds": 42,
+          "bpm": 78,
+          "kind": "song",
+          "render_id": "song-03-S01"
+        },
+        {
+          "id": "S04",
+          "text": "[Bridge] 말하지 못한 것들이 / 노래가 되어",
+          "seconds": 33,
+          "bpm": 84,
+          "kind": "song",
+          "render_id": "song-04-S04"
+        },
+        {
+          "id": "S03",
+          "text": "[Verse] 지워지지 않는 장면 / 필름처럼 번져",
+          "seconds": 45,
+          "bpm": 70,
+          "kind": "song",
+          "render_id": "song-05-S03"
+        }
+      ],
+      "dialogues": [
+        {
+          "id": "L03",
+          "text": "\"문 열어. 나야.\"",
+          "seconds": 2.1,
+          "tone": "조급",
+          "kind": "dialogue",
+          "render_id": "dialogue-01-L03"
+        },
+        {
+          "id": "L01",
+          "text": "\"여기까지야. 더는 못 가.\"",
+          "seconds": 3.2,
+          "tone": "체념",
+          "kind": "dialogue",
+          "render_id": "dialogue-02-L01"
+        },
+        {
+          "id": "L08",
+          "text": "\"나 여기 있을게.\"",
+          "seconds": 2.2,
+          "tone": "다정",
+          "kind": "dialogue",
+          "render_id": "dialogue-03-L08"
+        },
+        {
+          "id": "L07",
+          "text": "\"비가 오네.\"",
+          "seconds": 1.8,
+          "tone": "담담",
+          "kind": "dialogue",
+          "render_id": "dialogue-04-L07"
+        },
+        {
+          "id": "L06",
+          "text": "\"다시 시작할 수 있을까.\"",
+          "seconds": 3.5,
+          "tone": "회복",
+          "kind": "dialogue",
+          "render_id": "dialogue-05-L06"
+        }
+      ],
+      "checkpoints": {
+        "syn-airy-speech": "models/syn-airy-speech.pth",
+        "syn-whisper-song": "models/syn-whisper-song.pth",
+        "syn-low-speech": "models/syn-low-speech.pth"
+      }
+    },
+    {
+      "recipe_id": "blend-02-28aba6",
+      "name": "날카로운 목소리 #2 (syn-low-speech 중심)",
+      "voice_ids": [
+        "syn-mid-song",
+        "syn-low-speech",
+        "syn-low-song"
+      ],
+      "final_weights": {
+        "syn-mid-song": 0.25,
+        "syn-low-speech": 0.5,
+        "syn-low-song": 0.25
+      },
+      "steps": [
+        {
+          "pool": [
+            "syn-low-speech",
+            "syn-low-song",
+            "syn-mid-song"
+          ],
+          "pool_source": "같은 군집"
+        },
+        {
+          "step": 1,
+          "kind": "seed",
+          "items": [
+            "syn-low-speech",
+            "syn-low-song"
+          ],
+          "weights": [
+            0.6666666667,
+            0.3333333333
+          ]
+        },
+        {
+          "step": 2,
+          "kind": "chain",
+          "adds": [
+            "syn-mid-song"
+          ],
+          "items": [
+            "syn-mid-song",
+            "carry"
+          ],
+          "weights": [
+            0.25,
+            0.75
+          ]
+        }
+      ],
+      "tree": {
+        "label": "step2",
+        "weights": [
+          0.25,
+          0.75
+        ],
+        "children": [
+          {
+            "leaf": "syn-mid-song"
+          },
+          {
+            "label": "seed",
+            "weights": [
+              0.6666666667,
+              0.3333333333
+            ],
+            "children": [
+              {
+                "leaf": "syn-low-speech"
+              },
+              {
+                "leaf": "syn-low-song"
+              }
+            ]
+          }
+        ]
+      },
+      "cluster": 0,
+      "predicted_features": {
+        "f0_center_st": 0.83197,
+        "f0_range_st": 9.242137,
+        "f0_vibrato_hz": 5.024848,
+        "brightness": 0.613542,
+        "roughness": 0.282615,
+        "attack": 0.668258,
+        "nasality": -15.088148,
+        "breathiness": 0.53868,
+        "expressiveness": 16.192223
+      },
+      "gate": {
+        "passed": true,
+        "reason": "",
+        "warnings": [],
+        "checks": [
+          {
+            "check": "중복 없는 원본",
+            "ok": true,
+            "detail": "3개 원본 사용"
+          },
+          {
+            "check": "원본 개수 상한",
+            "ok": true,
+            "detail": "3 ≤ 6"
+          },
+          {
+            "check": "최대 지분",
+            "ok": true,
+            "detail": "최대 0.500 ≤ 0.62"
+          },
+          {
+            "check": "최소 지분",
+            "ok": true,
+            "detail": "최소 0.250 ≥ 0.03"
+          },
+          {
+            "check": "사실상 단일 음성 아님",
+            "ok": true,
+            "detail": "최대 0.500 < 0.95"
+          },
+          {
+            "check": "유사 음성쌍 없음",
+            "ok": true,
+            "detail": "통과"
+          },
+          {
+            "check": "최소 거리",
+            "ok": true,
+            "detail": "기준 0.25"
+          },
+          {
+            "check": "음색 다양성",
+            "ok": true,
+            "detail": "최대 상관 0.775 (syn-mid-song~syn-low-song)"
+          }
+        ]
+      },
+      "songs": [
+        {
+          "id": "S04",
+          "text": "[Bridge] 말하지 못한 것들이 / 노래가 되어",
+          "seconds": 33,
+          "bpm": 84,
+          "kind": "song",
+          "render_id": "song-01-S04"
+        },
+        {
+          "id": "S02",
+          "text": "[Chorus] 다시 봄이 오면 / 너의 자리에 서 있을게",
+          "seconds": 38,
+          "bpm": 92,
+          "kind": "song",
+          "render_id": "song-02-S02"
+        },
+        {
+          "id": "S03",
+          "text": "[Verse] 지워지지 않는 장면 / 필름처럼 번져",
+          "seconds": 45,
+          "bpm": 70,
+          "kind": "song",
+          "render_id": "song-03-S03"
+        },
+        {
+          "id": "S05",
+          "text": "[Chorus] 우리는 여기까지 / 하지만 노래는 남아",
+          "seconds": 40,
+          "bpm": 96,
+          "kind": "song",
+          "render_id": "song-04-S05"
+        }
+      ],
+      "dialogues": [
+        {
+          "id": "L05",
+          "text": "\"웃지 마. 진지하니까.\"",
+          "seconds": 2.9,
+          "tone": "발끈",
+          "kind": "dialogue",
+          "render_id": "dialogue-01-L05"
+        },
+        {
+          "id": "L07",
+          "text": "\"비가 오네.\"",
+          "seconds": 1.8,
+          "tone": "담담",
+          "kind": "dialogue",
+          "render_id": "dialogue-02-L07"
+        },
+        {
+          "id": "L01",
+          "text": "\"여기까지야. 더는 못 가.\"",
+          "seconds": 3.2,
+          "tone": "체념",
+          "kind": "dialogue",
+          "render_id": "dialogue-03-L01"
+        },
+        {
+          "id": "L06",
+          "text": "\"다시 시작할 수 있을까.\"",
+          "seconds": 3.5,
+          "tone": "회복",
+          "kind": "dialogue",
+          "render_id": "dialogue-04-L06"
+        },
+        {
+          "id": "L03",
+          "text": "\"문 열어. 나야.\"",
+          "seconds": 2.1,
+          "tone": "조급",
+          "kind": "dialogue",
+          "render_id": "dialogue-05-L03"
+        },
+        {
+          "id": "L08",
+          "text": "\"나 여기 있을게.\"",
+          "seconds": 2.2,
+          "tone": "다정",
+          "kind": "dialogue",
+          "render_id": "dialogue-06-L08"
+        }
+      ],
+      "checkpoints": {
+        "syn-mid-song": "models/syn-mid-song.pth",
+        "syn-low-speech": "models/syn-low-speech.pth",
+        "syn-low-song": "models/syn-low-song.pth"
+      }
+    },
+    {
+      "recipe_id": "blend-03-2d108a",
+      "name": "맑은 톤 #3 (syn-low-song 중심)",
+      "voice_ids": [
+        "syn-mid-speech",
+        "syn-low-song",
+        "syn-low-speech"
+      ],
+      "final_weights": {
+        "syn-mid-speech": 0.3333333333,
+        "syn-low-song": 0.4444444445,
+        "syn-low-speech": 0.2222222222
+      },
+      "steps": [
+        {
+          "pool": [
+            "syn-mid-speech",
+            "syn-mid-song",
+            "syn-low-song",
+            "syn-low-speech"
+          ],
+          "pool_source": "같은 군집 우선 + 전체 보충"
+        },
+        {
+          "step": 1,
+          "kind": "seed",
+          "items": [
+            "syn-low-song",
+            "syn-low-speech"
+          ],
+          "weights": [
+            0.6666666667,
+            0.3333333333
+          ]
+        },
+        {
+          "step": 2,
+          "kind": "chain",
+          "adds": [
+            "syn-mid-speech"
+          ],
+          "items": [
+            "syn-mid-speech",
+            "carry"
+          ],
+          "weights": [
+            0.3333333333,
+            0.6666666667
+          ]
+        }
+      ],
+      "tree": {
+        "label": "step2",
+        "weights": [
+          0.3333333333,
+          0.6666666667
+        ],
+        "children": [
+          {
+            "leaf": "syn-mid-speech"
+          },
+          {
+            "label": "seed",
+            "weights": [
+              0.6666666667,
+              0.3333333333
+            ],
+            "children": [
+              {
+                "leaf": "syn-low-song"
+              },
+              {
+                "leaf": "syn-low-speech"
+              }
+            ]
+          }
+        ]
+      },
+      "cluster": 0,
+      "predicted_features": {
+        "f0_center_st": 1.871052,
+        "f0_range_st": 8.078561,
+        "f0_vibrato_hz": 5.164532,
+        "brightness": 0.628968,
+        "roughness": 0.299803,
+        "attack": 0.682334,
+        "nasality": -14.317121,
+        "breathiness": 0.54694,
+        "expressiveness": 15.68106
+      },
+      "gate": {
+        "passed": true,
+        "reason": "",
+        "warnings": [],
+        "checks": [
+          {
+            "check": "중복 없는 원본",
+            "ok": true,
+            "detail": "3개 원본 사용"
+          },
+          {
+            "check": "원본 개수 상한",
+            "ok": true,
+            "detail": "3 ≤ 6"
+          },
+          {
+            "check": "최대 지분",
+            "ok": true,
+            "detail": "최대 0.444 ≤ 0.62"
+          },
+          {
+            "check": "최소 지분",
+            "ok": true,
+            "detail": "최소 0.222 ≥ 0.03"
+          },
+          {
+            "check": "사실상 단일 음성 아님",
+            "ok": true,
+            "detail": "최대 0.444 < 0.95"
+          },
+          {
+            "check": "유사 음성쌍 없음",
+            "ok": true,
+            "detail": "통과"
+          },
+          {
+            "check": "최소 거리",
+            "ok": true,
+            "detail": "기준 0.25"
+          },
+          {
+            "check": "음색 다양성",
+            "ok": true,
+            "detail": "최대 상관 0.507 (syn-low-song~syn-low-speech)"
+          }
+        ]
+      },
+      "songs": [
+        {
+          "id": "S03",
+          "text": "[Verse] 지워지지 않는 장면 / 필름처럼 번져",
+          "seconds": 45,
+          "bpm": 70,
+          "kind": "song",
+          "render_id": "song-01-S03"
+        },
+        {
+          "id": "S01",
+          "text": "[Verse] 새벽 세 시의 골목 / 네 이름을 부르다",
+          "seconds": 42,
+          "bpm": 78,
+          "kind": "song",
+          "render_id": "song-02-S01"
+        },
+        {
+          "id": "S04",
+          "text": "[Bridge] 말하지 못한 것들이 / 노래가 되어",
+          "seconds": 33,
+          "bpm": 84,
+          "kind": "song",
+          "render_id": "song-03-S04"
+        },
+        {
+          "id": "S02",
+          "text": "[Chorus] 다시 봄이 오면 / 너의 자리에 서 있을게",
+          "seconds": 38,
+          "bpm": 92,
+          "kind": "song",
+          "render_id": "song-04-S02"
+        },
+        {
+          "id": "S05",
+          "text": "[Chorus] 우리는 여기까지 / 하지만 노래는 남아",
+          "seconds": 40,
+          "bpm": 96,
+          "kind": "song",
+          "render_id": "song-05-S05"
+        }
+      ],
+      "dialogues": [
+        {
+          "id": "L01",
+          "text": "\"여기까지야. 더는 못 가.\"",
+          "seconds": 3.2,
+          "tone": "체념",
+          "kind": "dialogue",
+          "render_id": "dialogue-01-L01"
+        },
+        {
+          "id": "L03",
+          "text": "\"문 열어. 나야.\"",
+          "seconds": 2.1,
+          "tone": "조급",
+          "kind": "dialogue",
+          "render_id": "dialogue-02-L03"
+        },
+        {
+          "id": "L07",
+          "text": "\"비가 오네.\"",
+          "seconds": 1.8,
+          "tone": "담담",
+          "kind": "dialogue",
+          "render_id": "dialogue-03-L07"
+        },
+        {
+          "id": "L06",
+          "text": "\"다시 시작할 수 있을까.\"",
+          "seconds": 3.5,
+          "tone": "회복",
+          "kind": "dialogue",
+          "render_id": "dialogue-04-L06"
+        },
+        {
+          "id": "L08",
+          "text": "\"나 여기 있을게.\"",
+          "seconds": 2.2,
+          "tone": "다정",
+          "kind": "dialogue",
+          "render_id": "dialogue-05-L08"
+        }
+      ],
+      "checkpoints": {
+        "syn-mid-speech": "models/syn-mid-speech.pth",
+        "syn-low-song": "models/syn-low-song.pth",
+        "syn-low-speech": "models/syn-low-speech.pth"
+      }
+    }
+  ],
+  "manifest": [
+    {
+      "voice_id": "syn-low-speech",
+      "kind": "speech",
+      "source": "합성 LOW (speech)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-mid-speech",
+      "kind": "speech",
+      "source": "합성 MID (speech)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-high-speech",
+      "kind": "speech",
+      "source": "합성 HIGH (speech)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-airy-speech",
+      "kind": "speech",
+      "source": "합성 AIRY (speech)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-low-song",
+      "kind": "song",
+      "source": "합성 LOW (song)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-mid-song",
+      "kind": "song",
+      "source": "합성 MID (song)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-high-song",
+      "kind": "song",
+      "source": "합성 HIGH (song)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    },
+    {
+      "voice_id": "syn-whisper-song",
+      "kind": "song",
+      "source": "합성 WHISPER (song)",
+      "consent": "synthetic",
+      "feature_source": "audio_measured"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "v01-self-speech": "logs/v01/weights/v01.pth",
+  "v02-self-song": "logs/v02/weights/v02.pth",
+  "v03-licensed-speech": "logs/v03/weights/v03.pth",
+  "v04-licensed-song": "logs/v04/weights/v04.pth",
+  "v05-synth-speech": "logs/v05/weights/v05.pth",
+  "v06-synth-song": "logs/v06/weights/v06.pth"
+}

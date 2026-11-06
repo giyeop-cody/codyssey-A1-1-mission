@@ -1,0 +1,7 @@
+voice_id,source,kind,shard,seconds,consent,audio
+v01-self-speech,본인 녹음(대사),speech,session-2026-10-01,1800,self,raw/v01.wav
+v02-self-song,본인 녹음(가창),song,session-2026-10-02,2400,self,raw/v02.wav
+v03-licensed-speech,정식 라이선스 계약 A,speech,contract-A-clip,1500,licensed,raw/v03.wav
+v04-licensed-song,정식 라이선스 계약 B,song,contract-B-clip,2000,licensed,raw/v04.wav
+v05-synth-speech,합성 음성(자체 제작),speech,synth-v05,1200,synthetic,raw/v05.wav
+v06-synth-song,합성 음성(자체 제작),song,synth-v06,1800,synthetic,raw/v06.wav

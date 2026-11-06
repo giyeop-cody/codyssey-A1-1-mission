@@ -1,0 +1,5 @@
+# voice-blend 코어(측정·군집·레시피·감사) — GPU 불필요
+numpy>=2.0,<3
+pytest>=8,<10
+# torch 및 RVC WebUI는 이 저장소에 포함하지 않는다(라이선스·용량).
+#   RVC 환경 설치: https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
